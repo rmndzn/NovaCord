@@ -11,13 +11,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) fetchProfile(session.user)
       else setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
+      if (session?.user) fetchProfile(session.user)
       else { setProfile(null); setLoading(false) }
     })
 
@@ -27,11 +27,11 @@ export function AuthProvider({ children }) {
   async function ensureProfileRow(authUser, overrides = {}) {
     if (!authUser?.id) return null
 
+    const generatedUsername = `user_${authUser.id.slice(0, 8)}`
     const fallbackUsernameBase =
       overrides.username ||
       authUser.user_metadata?.username ||
-      authUser.email?.split('@')[0] ||
-      `user_${authUser.id.slice(0, 8)}`
+      generatedUsername
 
     const payload = {
       id: authUser.id,

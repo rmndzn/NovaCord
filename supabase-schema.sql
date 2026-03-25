@@ -103,28 +103,67 @@ alter table badges             enable row level security;
 alter table invitations        enable row level security;
 
 -- =============================================
--- STEP 4: RLS POLICIES
--- NOTE: policies that join back to community_members use a
--- correlated subquery so they only run AFTER that table exists.
+-- STEP 4: HELPER FUNCTIONS FOR RLS
 -- =============================================
 
--- ── profiles ─────────────────────────────────────────────────────────────────
+create or replace function public.is_community_member(check_community_id uuid, check_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.community_members
+    where community_id = check_community_id
+      and user_id = check_user_id
+  );
+$$;
+
+create or replace function public.has_community_role(
+  check_community_id uuid,
+  check_user_id uuid,
+  allowed_roles text[]
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.community_members
+    where community_id = check_community_id
+      and user_id = check_user_id
+      and role = any(allowed_roles)
+  );
+$$;
+
+grant execute on function public.is_community_member(uuid, uuid) to authenticated;
+grant execute on function public.has_community_role(uuid, uuid, text[]) to authenticated;
+
+-- =============================================
+-- STEP 5: RLS POLICIES
+-- =============================================
+
+drop policy if exists "profiles: authenticated users can read all" on profiles;
 create policy "profiles: authenticated users can read all"
   on profiles for select
-  using ( auth.role() = 'authenticated' );
+  using (auth.role() = 'authenticated');
 
+drop policy if exists "profiles: users can insert own row" on profiles;
 create policy "profiles: users can insert own row"
   on profiles for insert
-  with check ( auth.uid() = id );
+  with check (auth.uid() = id);
 
+drop policy if exists "profiles: users can update own row" on profiles;
 create policy "profiles: users can update own row"
   on profiles for update
-  using ( auth.uid() = id );
+  using (auth.uid() = id);
 
--- ── communities ───────────────────────────────────────────────────────────────
--- Split into two SELECT policies so the planner never needs community_members
--- before it exists, and so public vs private logic stays clean.
-
+drop policy if exists "communities: public ones are visible to all authenticated" on communities;
 create policy "communities: public ones are visible to all authenticated"
   on communities for select
   using (
@@ -132,6 +171,7 @@ create policy "communities: public ones are visible to all authenticated"
     and visibility = 'public'
   );
 
+drop policy if exists "communities: private ones visible to members & owner" on communities;
 create policy "communities: private ones visible to members & owner"
   on communities for select
   using (
@@ -139,14 +179,11 @@ create policy "communities: private ones visible to members & owner"
     and visibility = 'private'
     and (
       owner_id = auth.uid()
-      or exists (
-        select 1 from community_members cm
-        where cm.community_id = communities.id
-          and cm.user_id = auth.uid()
-      )
+      or public.is_community_member(communities.id, auth.uid())
     )
   );
 
+drop policy if exists "communities: authenticated users can create" on communities;
 create policy "communities: authenticated users can create"
   on communities for insert
   with check (
@@ -154,98 +191,109 @@ create policy "communities: authenticated users can create"
     and auth.uid() = owner_id
   );
 
+drop policy if exists "communities: owner can update" on communities;
 create policy "communities: owner can update"
   on communities for update
-  using ( auth.uid() = owner_id );
+  using (auth.uid() = owner_id);
 
+drop policy if exists "communities: owner can delete" on communities;
 create policy "communities: owner can delete"
   on communities for delete
-  using ( auth.uid() = owner_id );
+  using (auth.uid() = owner_id);
 
--- ── community_members ─────────────────────────────────────────────────────────
+drop policy if exists "community_members: members can read membership of their communities" on community_members;
 create policy "community_members: members can read membership of their communities"
   on community_members for select
   using (
     user_id = auth.uid()
     or exists (
-      select 1 from community_members cm2
-      where cm2.community_id = community_members.community_id
-        and cm2.user_id = auth.uid()
+      select 1
+      from communities c
+      where c.id = community_members.community_id
+        and c.owner_id = auth.uid()
     )
+    or public.is_community_member(community_members.community_id, auth.uid())
   );
 
+drop policy if exists "community_members: users can join public communities" on community_members;
 create policy "community_members: users can join public communities"
   on community_members for insert
   with check (
     auth.uid() = user_id
     and exists (
-      select 1 from communities c
+      select 1
+      from communities c
       where c.id = community_id
         and c.visibility = 'public'
     )
   );
 
+drop policy if exists "community_members: owner/admin can add members to private communities" on community_members;
 create policy "community_members: owner/admin can add members to private communities"
   on community_members for insert
   with check (
     exists (
-      select 1 from community_members cm2
-      where cm2.community_id = community_members.community_id
-        and cm2.user_id = auth.uid()
-        and cm2.role in ('owner', 'admin')
+      select 1
+      from communities c
+      where c.id = community_members.community_id
+        and c.owner_id = auth.uid()
+    )
+    or public.has_community_role(
+      community_members.community_id,
+      auth.uid(),
+      array['owner', 'admin']
     )
   );
 
+drop policy if exists "community_members: users can remove themselves" on community_members;
 create policy "community_members: users can remove themselves"
   on community_members for delete
-  using ( auth.uid() = user_id );
+  using (auth.uid() = user_id);
 
+drop policy if exists "community_members: owner/admin can remove others" on community_members;
 create policy "community_members: owner/admin can remove others"
   on community_members for delete
   using (
     exists (
-      select 1 from community_members cm2
-      where cm2.community_id = community_members.community_id
-        and cm2.user_id = auth.uid()
-        and cm2.role in ('owner', 'admin')
+      select 1
+      from communities c
+      where c.id = community_members.community_id
+        and c.owner_id = auth.uid()
+    )
+    or public.has_community_role(
+      community_members.community_id,
+      auth.uid(),
+      array['owner', 'admin']
     )
   );
 
--- ── messages ──────────────────────────────────────────────────────────────────
+drop policy if exists "messages: members can read" on messages;
 create policy "messages: members can read"
   on messages for select
-  using (
-    exists (
-      select 1 from community_members cm
-      where cm.community_id = messages.community_id
-        and cm.user_id = auth.uid()
-    )
-  );
+  using (public.is_community_member(messages.community_id, auth.uid()));
 
+drop policy if exists "messages: members can send" on messages;
 create policy "messages: members can send"
   on messages for insert
   with check (
     auth.uid() = sender_id
-    and exists (
-      select 1 from community_members cm
-      where cm.community_id = messages.community_id
-        and cm.user_id = auth.uid()
-    )
+    and public.is_community_member(messages.community_id, auth.uid())
   );
 
+drop policy if exists "messages: senders can delete own" on messages;
 create policy "messages: senders can delete own"
   on messages for delete
-  using ( auth.uid() = sender_id );
+  using (auth.uid() = sender_id);
 
--- ── badges ────────────────────────────────────────────────────────────────────
+drop policy if exists "badges: authenticated users can read all" on badges;
 create policy "badges: authenticated users can read all"
   on badges for select
-  using ( auth.role() = 'authenticated' );
+  using (auth.role() = 'authenticated');
 
 -- Insert managed manually via SQL / service role only
 -- (badges are awarded by admins, not self-assigned)
 
--- ── invitations ───────────────────────────────────────────────────────────────
+drop policy if exists "invitations: involved users can read" on invitations;
 create policy "invitations: involved users can read"
   on invitations for select
   using (
@@ -253,35 +301,33 @@ create policy "invitations: involved users can read"
     or auth.uid() = invited_by
   );
 
+drop policy if exists "invitations: members can invite to their communities" on invitations;
 create policy "invitations: members can invite to their communities"
   on invitations for insert
   with check (
     auth.uid() = invited_by
-    and exists (
-      select 1 from community_members cm
-      where cm.community_id = invitations.community_id
-        and cm.user_id = auth.uid()
-    )
+    and public.is_community_member(invitations.community_id, auth.uid())
   );
 
+drop policy if exists "invitations: invited user can update status" on invitations;
 create policy "invitations: invited user can update status"
   on invitations for update
-  using ( auth.uid() = invited_user_id );
+  using (auth.uid() = invited_user_id);
 
 -- =============================================
--- STEP 5: ENABLE REALTIME
+-- STEP 6: ENABLE REALTIME
 -- (run once; safe to re-run)
 -- =============================================
 
 -- Messages: full real-time inserts via postgres_changes
 alter publication supabase_realtime add table messages;
 
--- community_members: optional — enables live member count updates
+-- community_members: optional - enables live member count updates
 alter publication supabase_realtime add table community_members;
 
 -- =============================================
--- STEP 6: STORAGE BUCKETS
--- Create these manually in Supabase Dashboard → Storage
+-- STEP 7: STORAGE BUCKETS
+-- Create these manually in Supabase Dashboard -> Storage
 -- or uncomment the lines below if using service-role SQL.
 -- =============================================
 
