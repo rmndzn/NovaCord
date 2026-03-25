@@ -43,6 +43,10 @@
   min-width: 0;
 }
 
+.chat-header-info > div:last-child {
+  min-width: 0;
+}
+
 .chat-header-avatar {
   width: 42px;
   height: 42px;
@@ -136,15 +140,21 @@
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-header-meta {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   font-size: 11px;
   color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .messages-area {
@@ -503,12 +513,17 @@
     display: inline-flex;
   }
 
+  .mobile-sidebar-btn {
+    display: none;
+  }
+
   .chat-header {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .chat-manage-btn {
     padding: 10px 12px;
+    flex-shrink: 0;
   }
 
   .chat-manage-btn span {
@@ -525,6 +540,20 @@
 
   .chat-community-summary p:last-child {
     font-size: 13px;
+  }
+
+  .chat-header-info {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .chat-header-name {
+    max-width: 42vw;
+  }
+
+  .chat-header-meta {
+    max-width: 42vw;
   }
 
   .message-bubble {

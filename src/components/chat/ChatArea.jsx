@@ -173,10 +173,6 @@ export default function ChatArea() {
                 <ArrowLeft size={18} />
               </button>
 
-              <button className="mobile-sidebar-btn" onClick={() => openSidebar?.()} aria-label="Open sidebar">
-                <Menu size={18} />
-              </button>
-
               {activeCommunity.avatar_url ? (
                 <img
                   src={activeCommunity.avatar_url}
