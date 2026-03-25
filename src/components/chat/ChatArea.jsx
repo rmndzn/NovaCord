@@ -49,6 +49,7 @@ export default function ChatArea() {
   const [uploadPreview, setUploadPreview] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
   const [showManagePanel, setShowManagePanel] = useState(false)
+  const [userBadges, setUserBadges] = useState({})
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -78,7 +79,36 @@ export default function ChatArea() {
     setUploadFile(null)
     setUploadPreview(null)
     setShowManagePanel(false)
+    setUserBadges({})
   }, [activeCommunity?.id])
+
+  useEffect(() => {
+    const senderIds = [...new Set(messages.map((message) => message.sender_id).filter(Boolean))]
+    const missingIds = senderIds.filter((id) => !userBadges[id])
+    if (!missingIds.length) return
+
+    async function loadBadges() {
+      const { data, error } = await supabase
+        .from('badges')
+        .select('user_id, badge_name, badge_url, created_at')
+        .in('user_id', missingIds)
+        .order('created_at', { ascending: false })
+
+      if (error) return
+
+      const next = {}
+      for (const badge of data || []) {
+        if (!next[badge.user_id]) next[badge.user_id] = badge
+      }
+      for (const id of missingIds) {
+        if (!next[id]) next[id] = null
+      }
+
+      setUserBadges((prev) => ({ ...prev, ...next }))
+    }
+
+    loadBadges()
+  }, [messages, userBadges])
 
   if (!activeCommunity) return <EmptyState openSidebar={openSidebar} />
 
@@ -285,6 +315,7 @@ export default function ChatArea() {
                         message={message}
                         isOwn={isOwn}
                         isGrouped={isGrouped}
+                        badge={userBadges[message.sender_id] || null}
                         onAddFriend={handleQuickAddFriend}
                         onMessageUser={handleQuickMessage}
                       />
@@ -368,7 +399,7 @@ export default function ChatArea() {
   )
 }
 
-function MessageBubble({ message, isOwn, isGrouped, onAddFriend, onMessageUser }) {
+function MessageBubble({ message, isOwn, isGrouped, badge, onAddFriend, onMessageUser }) {
   const isImage = message.message_type === 'image'
   const isVideo = message.message_type === 'video'
   const sender = message.profiles
@@ -384,6 +415,12 @@ function MessageBubble({ message, isOwn, isGrouped, onAddFriend, onMessageUser }
               <div>
                 <div className="hover-profile-name">{sender.display_name || 'Unknown'}</div>
                 <div className="hover-profile-user">@{sender.username || 'unknown'}</div>
+                {badge && (
+                  <div className="hover-profile-badge">
+                    {badge.badge_url ? <img src={badge.badge_url} alt={badge.badge_name || 'badge'} /> : null}
+                    <span>{badge.badge_name || 'Badge'}</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="hover-profile-actions">
@@ -401,6 +438,12 @@ function MessageBubble({ message, isOwn, isGrouped, onAddFriend, onMessageUser }
             <span className="message-sender">
               {isOwn ? 'You' : sender?.display_name || 'Unknown'}
             </span>
+            {badge && (
+              <span className="message-badge">
+                {badge.badge_url ? <img src={badge.badge_url} alt={badge.badge_name || 'badge'} /> : null}
+                <span>{badge.badge_name || 'Badge'}</span>
+              </span>
+            )}
             <span className="message-time">
               {format(new Date(message.created_at), 'HH:mm')}
             </span>

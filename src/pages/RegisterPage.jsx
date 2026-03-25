@@ -55,7 +55,7 @@ export function RegisterPage() {
         )}
         <form className={styles.form} onSubmit={handleSubmit}>
           <Input label="Display Name" value={form.displayName} onChange={e => update('displayName', e.target.value)} placeholder="Your name" icon={<User size={16} />} disabled={registrationDisabled} />
-          <Input label="Username" value={form.username} onChange={e => update('username', e.target.value.replace(/\s/g,'').toLowerCase())} placeholder="username" icon={<AtSign size={16} />} disabled={registrationDisabled} />
+          <Input label="Username" value={form.username} onChange={e => update('username', e.target.value.replace(/\s/g, '').toLowerCase())} placeholder="username" icon={<AtSign size={16} />} disabled={registrationDisabled} />
           <Input label="Email" type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="you@example.com" icon={<Mail size={16} />} disabled={registrationDisabled} />
           <Input label="Password" type="password" value={form.password} onChange={e => update('password', e.target.value)} placeholder="min 6 characters" icon={<Lock size={16} />} disabled={registrationDisabled} />
           <Button type="submit" variant="primary" fullWidth size="lg" loading={loading && !registrationDisabled} disabled={registrationDisabled}>

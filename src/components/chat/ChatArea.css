@@ -251,6 +251,7 @@
   align-items: baseline;
   gap: 8px;
   margin-bottom: 4px;
+  flex-wrap: wrap;
 }
 
 .message-sender {
@@ -261,6 +262,27 @@
 
 .message.own .message-sender {
   color: var(--violet-400);
+}
+
+.message-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.16);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: var(--violet-200);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.message-badge img {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .message-time {
@@ -351,6 +373,27 @@
   display: flex;
   gap: 6px;
   margin-top: 10px;
+}
+
+.hover-profile-badge {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.16);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  color: var(--violet-200);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.hover-profile-badge img {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .hover-profile-actions button {
