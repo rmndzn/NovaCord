@@ -13,11 +13,16 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '', username: '', displayName: '' })
   const [loading, setLoading] = useState(false)
+  const registrationDisabled = true
 
   function update(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (registrationDisabled) {
+      toast.error('Registration is temporarily disabled')
+      return
+    }
     if (!form.email || !form.password || !form.username || !form.displayName)
       return toast.error('Please fill all fields')
     if (form.password.length < 6) return toast.error('Password must be at least 6 characters')
@@ -45,12 +50,17 @@ export function RegisterPage() {
         </div>
         <h1 className={styles.title}>Create Account</h1>
         <p className={styles.subtitle}>Join the next-gen gaming social platform</p>
+        {registrationDisabled && (
+          <div className={styles.notice}>Registration is temporarily disabled</div>
+        )}
         <form className={styles.form} onSubmit={handleSubmit}>
-          <Input label="Display Name" value={form.displayName} onChange={e => update('displayName', e.target.value)} placeholder="Your name" icon={<User size={16} />} />
-          <Input label="Username" value={form.username} onChange={e => update('username', e.target.value.replace(/\s/g,'').toLowerCase())} placeholder="username" icon={<AtSign size={16} />} />
-          <Input label="Email" type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="you@example.com" icon={<Mail size={16} />} />
-          <Input label="Password" type="password" value={form.password} onChange={e => update('password', e.target.value)} placeholder="min 6 characters" icon={<Lock size={16} />} />
-          <Button type="submit" variant="primary" fullWidth size="lg" loading={loading}>Create Account</Button>
+          <Input label="Display Name" value={form.displayName} onChange={e => update('displayName', e.target.value)} placeholder="Your name" icon={<User size={16} />} disabled={registrationDisabled} />
+          <Input label="Username" value={form.username} onChange={e => update('username', e.target.value.replace(/\s/g,'').toLowerCase())} placeholder="username" icon={<AtSign size={16} />} disabled={registrationDisabled} />
+          <Input label="Email" type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="you@example.com" icon={<Mail size={16} />} disabled={registrationDisabled} />
+          <Input label="Password" type="password" value={form.password} onChange={e => update('password', e.target.value)} placeholder="min 6 characters" icon={<Lock size={16} />} disabled={registrationDisabled} />
+          <Button type="submit" variant="primary" fullWidth size="lg" loading={loading && !registrationDisabled} disabled={registrationDisabled}>
+            {registrationDisabled ? 'Registration Disabled' : 'Create Account'}
+          </Button>
         </form>
         <p className={styles.switch}>
           Already have an account? <Link to="/login" className={styles.link}>Sign in</Link>

@@ -9,11 +9,16 @@ export default function Register() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '', username: '', displayName: '' })
   const [loading, setLoading] = useState(false)
+  const registrationDisabled = true
 
   const update = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (registrationDisabled) {
+      toast.error('Registration is temporarily disabled')
+      return
+    }
     const { email, password, username, displayName } = form
     if (!email || !password || !username || !displayName) return toast.error('Please fill all fields')
     if (password.length < 6) return toast.error('Password must be at least 6 characters')
@@ -44,27 +49,32 @@ export default function Register() {
 
         <h1 className="auth-title">Join the Network</h1>
         <p className="auth-subtitle">Create your gaming identity</p>
+        {registrationDisabled && (
+          <div className="auth-notice">
+            Registration is temporarily disabled
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="field-group">
             <label className="field-label">DISPLAY NAME</label>
-            <input className="input" placeholder="Your Name" value={form.displayName} onChange={update('displayName')} required />
+            <input className="input" placeholder="Your Name" value={form.displayName} onChange={update('displayName')} required disabled={registrationDisabled} />
           </div>
           <div className="field-group">
             <label className="field-label">USERNAME</label>
-            <input className="input" placeholder="unique_handle" value={form.username} onChange={update('username')} required />
+            <input className="input" placeholder="unique_handle" value={form.username} onChange={update('username')} required disabled={registrationDisabled} />
           </div>
           <div className="field-group">
             <label className="field-label">EMAIL</label>
-            <input className="input" type="email" placeholder="your@email.com" value={form.email} onChange={update('email')} required />
+            <input className="input" type="email" placeholder="your@email.com" value={form.email} onChange={update('email')} required disabled={registrationDisabled} />
           </div>
           <div className="field-group">
             <label className="field-label">PASSWORD</label>
-            <input className="input" type="password" placeholder="Min 6 characters" value={form.password} onChange={update('password')} required />
+            <input className="input" type="password" placeholder="Min 6 characters" value={form.password} onChange={update('password')} required disabled={registrationDisabled} />
           </div>
 
-          <button className="btn btn-primary w-full" type="submit" disabled={loading}>
-            {loading ? 'CREATING...' : 'CREATE ACCOUNT'}
+          <button className="btn btn-primary w-full" type="submit" disabled={loading || registrationDisabled}>
+            {registrationDisabled ? 'REGISTRATION DISABLED' : loading ? 'CREATING...' : 'CREATE ACCOUNT'}
           </button>
         </form>
 
