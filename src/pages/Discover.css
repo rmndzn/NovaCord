@@ -210,6 +210,6 @@
 
   .communities-grid {
     grid-template-columns: 1fr;
-    padding: 16px 14px 24px;
+    padding: 16px 14px 98px;
   }
 }

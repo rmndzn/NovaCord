@@ -71,7 +71,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal-content">
+      <div className="modal-content" style={{ width: 'min(560px, calc(100vw - 24px))', maxHeight: 'calc(100vh - 24px)', overflowY: 'auto' }}>
         <div style={{ padding: '24px 24px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 16, letterSpacing: 1 }}>EDIT PROFILE</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}>
@@ -79,9 +79,9 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
           </button>
         </div>
 
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="edit-profile-content" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Uploads */}
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div className="edit-profile-uploads" style={{ display: 'flex', gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: 'var(--text-faint)', fontFamily: 'var(--font-display)', marginBottom: 6 }}>AVATAR</div>
               <button onClick={() => avatarRef.current?.click()} style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(139,92,246,0.1)', border: '1px dashed rgba(139,92,246,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', position: 'relative' }}>
@@ -114,7 +114,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }) {
             </div>
           ))}
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+          <div className="edit-profile-actions" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
             <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
               {loading ? 'SAVING...' : 'SAVE'}

@@ -133,3 +133,34 @@
 }
 
 .back-btn:hover { color: var(--text-secondary); }
+
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 16px 12px 98px;
+    justify-content: flex-start;
+  }
+
+  .settings-container {
+    max-width: none;
+  }
+
+  .settings-header {
+    margin-bottom: 18px;
+  }
+
+  .settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .settings-row-value {
+    font-size: 12px;
+    word-break: break-word;
+  }
+
+  .settings-action,
+  .settings-danger .btn {
+    width: 100%;
+  }
+}

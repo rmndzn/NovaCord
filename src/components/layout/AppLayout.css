@@ -134,14 +134,17 @@
     flex: 1;
     justify-content: flex-start;
     margin-right: 8px;
+    text-align: left;
   }
 
   .mobile-profile-copy {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    width: 100%;
     text-align: left;
     align-items: flex-start;
+    justify-content: flex-start;
   }
 
   .mobile-profile-name {
@@ -151,11 +154,15 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    text-align: left;
   }
 
   .mobile-profile-username {
     font-size: 11px;
     color: var(--text-faint);
+    width: 100%;
+    text-align: left;
   }
 
   .mobile-profile-actions {

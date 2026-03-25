@@ -10,3 +10,39 @@
   width: 100%;
   max-width: 480px;
 }
+
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 16px 12px 98px;
+    justify-content: flex-start;
+  }
+
+  .profile-page-inner {
+    max-width: none;
+  }
+
+  .modal-content {
+    width: min(560px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  .edit-profile-content {
+    padding: 14px !important;
+    gap: 12px !important;
+  }
+
+  .edit-profile-uploads {
+    flex-direction: column;
+    gap: 10px !important;
+  }
+
+  .edit-profile-actions {
+    flex-direction: column-reverse;
+    gap: 8px !important;
+  }
+
+  .edit-profile-actions .btn {
+    width: 100%;
+  }
+}
