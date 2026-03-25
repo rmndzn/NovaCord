@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
   background: rgba(5, 0, 15, 0.55);
 }
 
@@ -160,6 +163,7 @@
 .messages-area {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px 0 16px;
 }
 
@@ -224,6 +228,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 4px 20px;
+  min-width: 0;
   transition: background 0.15s;
 }
 
@@ -238,6 +243,7 @@
 .message-content {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .message-header {
@@ -268,6 +274,7 @@
   flex-direction: column;
   gap: 6px;
   max-width: min(70%, 540px);
+  min-width: 0;
   background: rgba(25, 5, 55, 0.5);
   border: 1px solid rgba(139, 92, 246, 0.1);
   border-radius: 0 12px 12px 12px;
@@ -519,6 +526,7 @@
 
   .chat-header {
     align-items: center;
+    gap: 8px;
   }
 
   .chat-manage-btn {
@@ -549,15 +557,24 @@
   }
 
   .chat-header-name {
-    max-width: 42vw;
+    max-width: calc(100vw - 226px);
   }
 
   .chat-header-meta {
-    max-width: 42vw;
+    max-width: calc(100vw - 226px);
+  }
+
+  .chat-community-summary {
+    overflow-x: hidden;
+  }
+
+  .chat-community-summary h1,
+  .chat-community-summary p {
+    overflow-wrap: anywhere;
   }
 
   .message-bubble {
-    max-width: calc(100vw - 88px);
+    max-width: min(100%, calc(100vw - 150px));
   }
 
   .chat-input-area {

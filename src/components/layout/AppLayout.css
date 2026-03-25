@@ -105,6 +105,9 @@
   .app-main {
     margin-left: 66px;
     padding-bottom: 76px;
+    width: calc(100vw - 66px);
+    max-width: calc(100vw - 66px);
+    overflow-x: hidden;
   }
 
   .mobile-profile-dock {
@@ -112,11 +115,11 @@
     align-items: center;
     justify-content: space-between;
     position: fixed;
-    left: 0;
+    left: 66px;
     right: 0;
     bottom: 0;
     height: 76px;
-    padding: 10px 14px 10px 80px;
+    padding: 10px 12px;
     background: rgba(8, 0, 20, 0.96);
     border-top: 1px solid rgba(139, 92, 246, 0.2);
     z-index: 13;
@@ -130,6 +133,7 @@
     min-width: 0;
     flex: 1;
     justify-content: flex-start;
+    margin-right: 8px;
   }
 
   .mobile-profile-copy {
