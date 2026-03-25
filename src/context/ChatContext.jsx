@@ -237,6 +237,14 @@ export function ChatProvider({ children }) {
   async function sendMessage(communityId, content, fileUrl = null, messageType = 'text') {
     if (!user) return
 
+    if (
+      activeCommunity?.id === communityId &&
+      activeCommunity.type === 'channel' &&
+      activeCommunity.owner_id !== user.id
+    ) {
+      throw new Error('Only the channel owner can send messages.')
+    }
+
     clearTyping()
 
     const { error } = await supabase.from('messages').insert({

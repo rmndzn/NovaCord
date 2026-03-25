@@ -501,6 +501,14 @@
   border-color: rgba(139, 92, 246, 0.4);
 }
 
+.attach-btn:disabled,
+.send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .message-input {
   flex: 1;
   background: rgba(12, 0, 28, 0.6);
@@ -525,6 +533,11 @@
 
 .message-input::placeholder {
   color: var(--text-faint);
+}
+
+.message-input:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
 .send-btn {

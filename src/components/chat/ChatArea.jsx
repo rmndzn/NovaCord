@@ -85,6 +85,7 @@ export default function ChatArea() {
   const isChannel = activeCommunity.type === 'channel'
   const isPrivate = activeCommunity.visibility === 'private'
   const isOwner = activeCommunity.owner_id === user?.id || activeCommunity.role === 'owner'
+  const canSendInCommunity = !isChannel || isOwner
 
   function handleFileSelect(event) {
     const file = event.target.files?.[0]
@@ -114,6 +115,10 @@ export default function ChatArea() {
   }
 
   async function handleSend() {
+    if (!canSendInCommunity) {
+      toast.error('Only the channel owner can send messages.')
+      return
+    }
     if (!text.trim() && !uploadFile) return
 
     setSending(true)
@@ -135,6 +140,7 @@ export default function ChatArea() {
   }
 
   function handleTextChange(event) {
+    if (!canSendInCommunity) return
     setText(event.target.value)
     if (event.target.value.trim()) broadcastTyping()
   }
@@ -320,7 +326,7 @@ export default function ChatArea() {
         )}
 
         <div className="chat-input-area">
-          <button className="attach-btn" onClick={() => fileInputRef.current?.click()}>
+          <button className="attach-btn" onClick={() => fileInputRef.current?.click()} disabled={!canSendInCommunity}>
             <Image size={18} />
           </button>
           <input
@@ -333,17 +339,18 @@ export default function ChatArea() {
 
           <textarea
             className="message-input"
-            placeholder={`Message ${activeCommunity.name}...`}
+            placeholder={canSendInCommunity ? `Message ${activeCommunity.name}...` : 'Only the channel owner can send messages'}
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             rows={1}
+            disabled={!canSendInCommunity}
           />
 
           <button
             className={`send-btn ${(text.trim() || uploadFile) && !sending ? 'active' : ''}`}
             onClick={handleSend}
-            disabled={sending || (!text.trim() && !uploadFile)}
+            disabled={sending || !canSendInCommunity || (!text.trim() && !uploadFile)}
           >
             {sending
               ? <Loader size={18} style={{ animation: 'spin 0.8s linear infinite' }} />

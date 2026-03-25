@@ -347,7 +347,16 @@ create policy "messages: members can send"
   on messages for insert
   with check (
     auth.uid() = sender_id
-    and public.is_community_member(messages.community_id, auth.uid())
+    and exists (
+      select 1
+      from communities c
+      where c.id = messages.community_id
+        and (
+          (c.type = 'group' and public.is_community_member(messages.community_id, auth.uid()))
+          or
+          (c.type = 'channel' and c.owner_id = auth.uid())
+        )
+    )
   );
 
 drop policy if exists "messages: senders can delete own" on messages;
