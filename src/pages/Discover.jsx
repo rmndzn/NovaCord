@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Users, Hash, Globe, Lock, Zap } from 'lucide-react'
+import { Search, Users, Hash, Globe, Zap } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useChat } from '../context/ChatContext'
@@ -9,7 +9,7 @@ import './Discover.css'
 
 export default function Discover() {
   const { user } = useAuth()
-  const { fetchCommunities } = useChat()
+  const { joinCommunity } = useChat()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [communities, setCommunities] = useState([])
@@ -31,15 +31,14 @@ export default function Discover() {
   }
 
   async function handleJoin(community) {
+    if (!user) {
+      toast.error('Please sign in first.')
+      return
+    }
+
     setJoining(community.id)
     try {
-      const { error } = await supabase.from('community_members').insert({
-        community_id: community.id,
-        user_id: user.id,
-        role: 'member',
-      })
-      if (error) throw error
-      await fetchCommunities()
+      await joinCommunity(community.id)
       toast.success(`Joined ${community.name}!`)
       navigate(`/app/chat/${community.id}`)
     } catch (err) {

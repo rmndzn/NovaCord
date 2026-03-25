@@ -55,9 +55,17 @@ export default function ChatArea() {
     if (!communityId) return
     if (activeCommunity?.id === communityId) return
 
-    activateCommunityById(communityId).catch(() => {
-      toast.error('Unable to open that community right now.')
-    })
+    activateCommunityById(communityId)
+      .then((community) => {
+        if (!community) {
+          toast.error('You are not a member of that community.')
+          navigate('/app/discover')
+        }
+      })
+      .catch(() => {
+        toast.error('Unable to open that community right now.')
+        navigate('/app/discover')
+      })
   }, [communityId, activeCommunity?.id, communities, activateCommunityById])
 
   useEffect(() => {
@@ -138,11 +146,11 @@ export default function ChatArea() {
   }
 
   function handleBack() {
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      navigate('/app/discover')
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1)
       return
     }
-    openSidebar?.()
+    navigate('/app/discover')
   }
 
   const groupedMessages = groupMessagesByDate(messages)
