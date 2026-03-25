@@ -1,0 +1,12 @@
+.profile-page {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.profile-page-inner {
+  width: 100%;
+  max-width: 480px;
+}

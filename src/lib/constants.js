@@ -1,0 +1,9 @@
+export const APP_NAME = 'NovaCord'
+export const MAX_FILE_SIZE = 5 * 1024 * 1024
+export const ACCEPTED_IMAGE_TYPES = ['image/jpeg','image/jpg','image/png','image/webp','image/gif']
+export const ACCEPTED_VIDEO_TYPES = ['video/mp4','video/webm','video/quicktime']
+export const ACCEPTED_ALL_TYPES = [...ACCEPTED_IMAGE_TYPES, ...ACCEPTED_VIDEO_TYPES]
+export const COMMUNITY_TYPES = { GROUP: 'group', CHANNEL: 'channel' }
+export const VISIBILITY = { PUBLIC: 'public', PRIVATE: 'private' }
+export const ROLES = { OWNER: 'owner', ADMIN: 'admin', MEMBER: 'member' }
+export const MESSAGE_TYPES = { TEXT: 'text', IMAGE: 'image', VIDEO: 'video' }

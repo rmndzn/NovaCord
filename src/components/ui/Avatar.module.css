@@ -1,0 +1,27 @@
+
+.avatar { position: relative; flex-shrink: 0; border-radius: 50%; }
+.img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.initials { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; font-family: var(--font-display); font-weight: 700; color: #fff; font-size: 0.4em; letter-spacing: 0.05em; }
+
+.xs { width: 24px; height: 24px; font-size: 24px; }
+.sm { width: 32px; height: 32px; font-size: 32px; }
+.md { width: 40px; height: 40px; font-size: 40px; }
+.lg { width: 56px; height: 56px; font-size: 56px; }
+.xl { width: 80px; height: 80px; font-size: 80px; }
+.xxl { width: 96px; height: 96px; font-size: 96px; }
+
+.status {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
+}
+.xs .status { width: 8px; height: 8px; }
+.sm .status { width: 10px; height: 10px; }
+.md .status { width: 12px; height: 12px; }
+.lg .status { width: 14px; height: 14px; }
+.status_online { background: var(--status-online); }
+.status_away { background: var(--status-away); }
+.status_busy { background: var(--status-busy); }
+.status_offline { background: var(--status-offline); }

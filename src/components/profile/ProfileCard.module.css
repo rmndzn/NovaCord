@@ -1,0 +1,41 @@
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 0 40px var(--glow-soft);
+  animation: scale-in 0.3s ease;
+}
+.banner {
+  height: 140px;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+}
+.bannerOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, var(--bg-surface) 100%);
+}
+.topSection {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 20px 0;
+  margin-top: -48px;
+  position: relative;
+  z-index: 1;
+}
+.avatarWrap {
+  border-radius: 50%;
+  border: 4px solid var(--bg-surface);
+  box-shadow: 0 0 24px var(--glow-mid);
+}
+.info { padding: 12px 20px 20px; }
+.nameRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+.displayName { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: var(--text-primary); letter-spacing: 0.02em; }
+.username { font-size: 14px; color: var(--violet-400); font-weight: 500; display: block; margin-bottom: 10px; }
+.bio { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 14px; white-space: pre-wrap; }
+.meta { display: flex; gap: 16px; flex-wrap: wrap; }
+.metaItem { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
