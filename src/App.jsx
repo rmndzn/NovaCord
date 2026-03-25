@@ -7,7 +7,9 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Discover from './pages/Discover'
 import Chats from './pages/Chats'
+import Friends from './pages/Friends'
 import ChatArea from './components/chat/ChatArea'
+import DirectMessages from './pages/DirectMessages'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import CreateCommunity from './pages/CreateCommunity'
@@ -29,6 +31,8 @@ export default function App() {
             <Route index element={<Discover />} />
             <Route path="chats" element={<Chats />} />
             <Route path="discover" element={<Discover />} />
+            <Route path="friends" element={<Friends />} />
+            <Route path="dm/:username" element={<DirectMessages />} />
             <Route path="chat/:communityId" element={<ChatArea />} />
             <Route path="profile/:username" element={<Profile />} />
             <Route path="settings" element={<Settings />} />

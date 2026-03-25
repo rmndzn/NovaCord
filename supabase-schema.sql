@@ -94,6 +94,29 @@ create table if not exists invitations (
   unique(community_id, invited_user_id)
 );
 
+-- friendships (depends on profiles)
+create table if not exists friendships (
+  id            uuid primary key default uuid_generate_v4(),
+  requester_id  uuid not null references profiles(id) on delete cascade,
+  addressee_id  uuid not null references profiles(id) on delete cascade,
+  status        text not null default 'pending'
+                  check (status in ('pending', 'accepted', 'blocked')),
+  created_at    timestamptz default now(),
+  responded_at  timestamptz,
+  unique(requester_id, addressee_id),
+  check (requester_id <> addressee_id)
+);
+
+-- direct_messages (depends on profiles)
+create table if not exists direct_messages (
+  id           uuid primary key default uuid_generate_v4(),
+  sender_id    uuid not null references profiles(id) on delete cascade,
+  receiver_id  uuid not null references profiles(id) on delete cascade,
+  content      text not null,
+  created_at   timestamptz default now(),
+  check (sender_id <> receiver_id)
+);
+
 -- =============================================
 -- STEP 2: INDEXES
 -- =============================================
@@ -104,6 +127,11 @@ create index if not exists idx_cm_user_id             on community_members(user_
 create index if not exists idx_cm_community_id        on community_members(community_id);
 create index if not exists idx_communities_visibility on communities(visibility);
 create index if not exists idx_profiles_username      on profiles(username);
+create index if not exists idx_friendships_requester   on friendships(requester_id);
+create index if not exists idx_friendships_addressee   on friendships(addressee_id);
+create index if not exists idx_friendships_status      on friendships(status);
+create index if not exists idx_dm_sender_created       on direct_messages(sender_id, created_at desc);
+create index if not exists idx_dm_receiver_created     on direct_messages(receiver_id, created_at desc);
 
 -- =============================================
 -- STEP 3: ENABLE ROW LEVEL SECURITY
@@ -115,6 +143,8 @@ alter table community_members  enable row level security;
 alter table messages           enable row level security;
 alter table badges             enable row level security;
 alter table invitations        enable row level security;
+alter table friendships        enable row level security;
+alter table direct_messages    enable row level security;
 
 -- =============================================
 -- STEP 4: HELPER FUNCTIONS FOR RLS
@@ -159,8 +189,30 @@ begin
 end;
 $$;
 
+create or replace function public.are_friends(check_user_a uuid, check_user_b uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  return exists (
+    select 1
+    from public.friendships f
+    where (
+      (f.requester_id = check_user_a and f.addressee_id = check_user_b)
+      or
+      (f.requester_id = check_user_b and f.addressee_id = check_user_a)
+    )
+    and f.status = 'accepted'
+  );
+end;
+$$;
+
 grant execute on function public.is_community_member(uuid, uuid) to authenticated;
 grant execute on function public.has_community_role(uuid, uuid, text[]) to authenticated;
+grant execute on function public.are_friends(uuid, uuid) to authenticated;
 
 -- =============================================
 -- STEP 5: RLS POLICIES
@@ -332,6 +384,49 @@ create policy "invitations: invited user can update status"
   on invitations for update
   using (auth.uid() = invited_user_id);
 
+drop policy if exists "friendships: participants can read" on friendships;
+create policy "friendships: participants can read"
+  on friendships for select
+  using (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+drop policy if exists "friendships: users can send request" on friendships;
+create policy "friendships: users can send request"
+  on friendships for insert
+  with check (
+    auth.uid() = requester_id
+    and requester_id <> addressee_id
+  );
+
+drop policy if exists "friendships: addressee can respond" on friendships;
+create policy "friendships: addressee can respond"
+  on friendships for update
+  using (auth.uid() = addressee_id)
+  with check (
+    auth.uid() = addressee_id
+    and requester_id <> addressee_id
+  );
+
+drop policy if exists "friendships: participants can delete" on friendships;
+create policy "friendships: participants can delete"
+  on friendships for delete
+  using (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+drop policy if exists "direct_messages: friends can read own thread" on direct_messages;
+create policy "direct_messages: friends can read own thread"
+  on direct_messages for select
+  using (
+    (auth.uid() = sender_id or auth.uid() = receiver_id)
+    and public.are_friends(sender_id, receiver_id)
+  );
+
+drop policy if exists "direct_messages: friends can send" on direct_messages;
+create policy "direct_messages: friends can send"
+  on direct_messages for insert
+  with check (
+    auth.uid() = sender_id
+    and public.are_friends(sender_id, receiver_id)
+  );
+
 -- =============================================
 -- STEP 6: ENABLE REALTIME
 -- (run once; safe to re-run)
@@ -342,6 +437,9 @@ alter publication supabase_realtime add table messages;
 
 -- community_members: optional - enables live member count updates
 alter publication supabase_realtime add table community_members;
+
+-- direct_messages: optional - enables live private chat updates
+alter publication supabase_realtime add table direct_messages;
 
 -- =============================================
 -- STEP 7: STORAGE BUCKETS

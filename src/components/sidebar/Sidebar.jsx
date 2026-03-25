@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, Compass, Settings, Plus, Hash, Users, Lock, LogOut, X } from 'lucide-react'
+import { Search, Compass, Settings, Plus, Hash, Users, Lock, LogOut, UserPlus, X } from 'lucide-react'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
@@ -66,6 +66,13 @@ export default function Sidebar({ open, onClose }) {
         >
           <Compass size={16} />
           <span>Discover</span>
+        </button>
+        <button
+          className={`nav-item ${isActive('/app/friends') ? 'active' : ''}`}
+          onClick={() => goTo('/app/friends')}
+        >
+          <UserPlus size={16} />
+          <span>Friends</span>
         </button>
       </div>
 

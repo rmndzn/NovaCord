@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { MessageCircle, Compass, Settings, User } from 'lucide-react'
+import { MessageCircle, Compass, Settings, User, UserPlus } from 'lucide-react'
 import Sidebar from '../sidebar/Sidebar'
 import { useAuth } from '../../context/AuthContext'
 import './AppLayout.css'
@@ -38,6 +38,7 @@ export default function AppLayout() {
     return [
       { key: 'chats', label: 'Chats', icon: MessageCircle, path: '/app/chats', active: location.pathname.startsWith('/app/chat') || location.pathname === '/app/chats' },
       { key: 'discover', label: 'Discover', icon: Compass, path: '/app/discover', active: location.pathname === '/app/discover' },
+      { key: 'friends', label: 'Friends', icon: UserPlus, path: '/app/friends', active: location.pathname === '/app/friends' || location.pathname.startsWith('/app/dm/') },
       { key: 'settings', label: 'Settings', icon: Settings, path: '/app/settings', active: location.pathname === '/app/settings' },
       { key: 'profile', label: 'Profile', icon: User, path: usernamePath, active: location.pathname.startsWith('/app/profile/') },
     ]

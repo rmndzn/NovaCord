@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
 import Avatar from '../ui/Avatar'
 import CommunityManagePanel from './CommunityManagePanel'
+import { supabase } from '../../lib/supabase'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import './ChatArea.css'
@@ -159,6 +160,29 @@ export default function ChatArea() {
 
   const groupedMessages = groupMessagesByDate(messages)
 
+  async function handleQuickAddFriend(sender) {
+    if (!sender?.id || sender.id === user?.id) return
+    const { error } = await supabase.from('friendships').insert({
+      requester_id: user.id,
+      addressee_id: sender.id,
+      status: 'pending',
+    })
+    if (error) {
+      if (error.code === '23505') {
+        toast.error('Friend request already exists')
+      } else {
+        toast.error(error.message || 'Could not send friend request')
+      }
+      return
+    }
+    toast.success(`Friend request sent to @${sender.username}`)
+  }
+
+  function handleQuickMessage(sender) {
+    if (!sender?.username || sender.id === user?.id) return
+    navigate(`/app/dm/${sender.username}`)
+  }
+
   return (
     <>
       <div className="chat-area">
@@ -255,6 +279,8 @@ export default function ChatArea() {
                         message={message}
                         isOwn={isOwn}
                         isGrouped={isGrouped}
+                        onAddFriend={handleQuickAddFriend}
+                        onMessageUser={handleQuickMessage}
                       />
                     )
                   })}
@@ -335,15 +361,30 @@ export default function ChatArea() {
   )
 }
 
-function MessageBubble({ message, isOwn, isGrouped }) {
+function MessageBubble({ message, isOwn, isGrouped, onAddFriend, onMessageUser }) {
   const isImage = message.message_type === 'image'
   const isVideo = message.message_type === 'video'
   const sender = message.profiles
 
   return (
     <div className={`message ${isOwn ? 'own' : ''} ${isGrouped ? 'grouped' : ''}`}>
-      {!isGrouped && !isOwn && (
-        <Avatar src={sender?.avatar_url} name={sender?.display_name} size={32} />
+      {!isGrouped && !isOwn && sender && (
+        <div className="hover-profile-wrap">
+          <Avatar src={sender.avatar_url} name={sender.display_name} size={32} />
+          <div className="hover-profile-card">
+            <div className="hover-profile-head">
+              <Avatar src={sender.avatar_url} name={sender.display_name} size={40} />
+              <div>
+                <div className="hover-profile-name">{sender.display_name || 'Unknown'}</div>
+                <div className="hover-profile-user">@{sender.username || 'unknown'}</div>
+              </div>
+            </div>
+            <div className="hover-profile-actions">
+              <button onClick={() => onAddFriend?.(sender)}>Add Friend</button>
+              <button onClick={() => onMessageUser?.(sender)}>Message</button>
+            </div>
+          </div>
+        </div>
       )}
       {isGrouped && !isOwn && <div style={{ width: 32, flexShrink: 0 }} />}
 
