@@ -119,3 +119,22 @@
 }
 
 .option-btn.active span { color: var(--violet-300); }
+
+@media (max-width: 768px) {
+  .create-page {
+    padding: 20px 14px 32px;
+  }
+
+  .create-card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-title {
+    font-size: 20px;
+  }
+}

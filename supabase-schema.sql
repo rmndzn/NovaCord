@@ -6,6 +6,16 @@
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
+-- Restore base Supabase access to the public schema and app tables.
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant all on all routines in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
+
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on routines to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+
 -- =============================================
 -- STEP 1: CREATE TABLES (order matters)
 -- =============================================
@@ -32,9 +42,13 @@ create table if not exists communities (
   visibility  text not null default 'public'
                 check (visibility in ('public', 'private')),
   avatar_url  text,
+  banner_url  text,
   owner_id    uuid references profiles(id) on delete set null,
   created_at  timestamptz default now()
 );
+
+alter table communities add column if not exists avatar_url text;
+alter table communities add column if not exists banner_url text;
 
 -- community_members (depends on both above)
 create table if not exists community_members (
@@ -108,17 +122,19 @@ alter table invitations        enable row level security;
 
 create or replace function public.is_community_member(check_community_id uuid, check_user_id uuid)
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
-  select exists (
+begin
+  return exists (
     select 1
     from public.community_members
     where community_id = check_community_id
       and user_id = check_user_id
   );
+end;
 $$;
 
 create or replace function public.has_community_role(
@@ -127,18 +143,20 @@ create or replace function public.has_community_role(
   allowed_roles text[]
 )
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
-  select exists (
+begin
+  return exists (
     select 1
     from public.community_members
     where community_id = check_community_id
       and user_id = check_user_id
       and role = any(allowed_roles)
   );
+end;
 $$;
 
 grant execute on function public.is_community_member(uuid, uuid) to authenticated;

@@ -1,164 +1,208 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { ROLES } from '../lib/constants'
 
 const ChatContext = createContext(null)
 
 export function ChatProvider({ children }) {
   const { user, profile } = useAuth()
-  const [communities, setCommunities]         = useState([])
+  const [communities, setCommunities] = useState([])
   const [activeCommunity, setActiveCommunity] = useState(null)
-  const [messages, setMessages]               = useState([])
-  const [members, setMembers]                 = useState([])
-  const [loading, setLoading]                 = useState(false)
-  const [typingUsers, setTypingUsers]         = useState([])
+  const [messages, setMessages] = useState([])
+  const [members, setMembers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [typingUsers, setTypingUsers] = useState([])
 
-  // One Supabase Realtime channel per active community
-  const channelRef      = useRef(null)
-  // Debounce timer for clearing typing state
-  const typingTimerRef  = useRef(null)
-  // Track whether we've already sent isTyping:true this burst
-  const isTypingRef     = useRef(false)
+  const channelRef = useRef(null)
+  const typingTimerRef = useRef(null)
+  const isTypingRef = useRef(false)
 
-  // ── Load joined communities ───────────────────────────────────────────────
+  const mergeCommunity = useCallback((nextCommunity) => {
+    if (!nextCommunity) return
+
+    setCommunities((prev) => {
+      const existing = prev.find((community) => community.id === nextCommunity.id)
+      if (!existing) return [nextCommunity, ...prev]
+      return prev.map((community) =>
+        community.id === nextCommunity.id ? { ...community, ...nextCommunity } : community
+      )
+    })
+
+    setActiveCommunity((prev) => (
+      prev?.id === nextCommunity.id ? { ...prev, ...nextCommunity } : prev
+    ))
+  }, [])
+
+  const syncActiveCommunity = useCallback((nextCommunities) => {
+    setActiveCommunity((current) => {
+      if (!nextCommunities.length) return null
+      if (!current) return nextCommunities[0]
+      return nextCommunities.find((community) => community.id === current.id) || nextCommunities[0]
+    })
+  }, [])
+
   useEffect(() => {
-    if (!user) return
-    loadCommunities()
-  }, [user])
+    if (!user) {
+      setCommunities([])
+      setActiveCommunity(null)
+      setMessages([])
+      setMembers([])
+      setTypingUsers([])
+      return
+    }
 
-  // ── Switch channel when active community changes ──────────────────────────
+    loadCommunities()
+  }, [user?.id])
+
   useEffect(() => {
     if (!activeCommunity) return
 
     loadMessages(activeCommunity.id)
     loadMembers(activeCommunity.id)
 
-    // Tear down any previous channel
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
     }
 
-    // Build a single channel that handles:
-    //   1. postgres_changes  → new messages persisted to DB
-    //   2. broadcast         → ephemeral typing events (not stored in DB)
     const channel = supabase
       .channel(`community:${activeCommunity.id}`, {
-        config: { broadcast: { self: false } }, // don't echo our own broadcasts back
+        config: { broadcast: { self: false } },
       })
-
-      // ── 1. New messages ────────────────────────────────────────────────────
       .on(
         'postgres_changes',
         {
-          event:  'INSERT',
+          event: 'INSERT',
           schema: 'public',
-          table:  'messages',
+          table: 'messages',
           filter: `community_id=eq.${activeCommunity.id}`,
         },
         async (payload) => {
-          // Hydrate sender profile so MessageBubble can render name/avatar
           const { data: senderProfile } = await supabase
             .from('profiles')
             .select('id, display_name, username, avatar_url')
             .eq('id', payload.new.sender_id)
             .single()
 
-          setMessages(prev => [
+          setMessages((prev) => [
             ...prev,
             { ...payload.new, profiles: senderProfile ?? null },
           ])
         }
       )
-
-      // ── 2. Typing indicators (broadcast, ephemeral) ────────────────────────
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
-        // Ignore events from ourselves
         if (payload.userId === user?.id) return
 
         const username = payload.username || 'Someone'
-
         if (payload.isTyping) {
-          setTypingUsers(prev =>
-            prev.includes(username) ? prev : [...prev, username]
-          )
+          setTypingUsers((prev) => (prev.includes(username) ? prev : [...prev, username]))
         } else {
-          setTypingUsers(prev => prev.filter(u => u !== username))
+          setTypingUsers((prev) => prev.filter((entry) => entry !== username))
         }
       })
-
       .subscribe()
 
     channelRef.current = channel
 
-    // Cleanup when community changes or component unmounts
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current)
         channelRef.current = null
       }
-      // Clear stale typing state when leaving a community
       setTypingUsers([])
       isTypingRef.current = false
       clearTimeout(typingTimerRef.current)
     }
-  }, [activeCommunity?.id])
+  }, [activeCommunity?.id, user?.id])
 
-  // ── Data loaders ──────────────────────────────────────────────────────────
   async function loadCommunities() {
-    if (!user) return
-    const { data } = await supabase
+    if (!user) return []
+
+    const { data, error } = await supabase
       .from('community_members')
       .select('community_id, role, communities(*)')
       .eq('user_id', user.id)
       .order('joined_at', { ascending: false })
-    if (data) setCommunities(data.map(d => ({ ...d.communities, role: d.role })))
+
+    if (error) throw error
+
+    const nextCommunities = (data || [])
+      .map((entry) => entry.communities ? { ...entry.communities, role: entry.role } : null)
+      .filter(Boolean)
+
+    setCommunities(nextCommunities)
+    syncActiveCommunity(nextCommunities)
+    return nextCommunities
+  }
+
+  async function activateCommunityById(communityId) {
+    if (!communityId || !user) return null
+
+    const existing = communities.find((community) => community.id === communityId)
+    if (existing) {
+      setActiveCommunity(existing)
+      return existing
+    }
+
+    const { data, error } = await supabase
+      .from('community_members')
+      .select('role, communities(*)')
+      .eq('community_id', communityId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data?.communities) return null
+
+    const nextCommunity = { ...data.communities, role: data.role }
+    mergeCommunity(nextCommunity)
+    setActiveCommunity(nextCommunity)
+    return nextCommunity
   }
 
   async function loadMessages(communityId) {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .select('*, profiles(id, display_name, username, avatar_url)')
       .eq('community_id', communityId)
       .order('created_at', { ascending: true })
       .limit(100)
-    if (data) setMessages(data)
+
+    if (error) throw error
+    setMessages(data || [])
     setLoading(false)
   }
 
   async function loadMembers(communityId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('community_members')
-      .select('*, profiles(id, display_name, username, avatar_url)')
+      .select('*, profiles(id, display_name, username, avatar_url, email)')
       .eq('community_id', communityId)
-    if (data) setMembers(data)
+      .order('joined_at', { ascending: true })
+
+    if (error) throw error
+    setMembers(data || [])
+    return data || []
   }
 
-  // ── Typing broadcast ──────────────────────────────────────────────────────
-  /**
-   * Call this whenever the user types in the message input.
-   * - Sends isTyping:true once per burst (debounced leading edge)
-   * - Auto-sends isTyping:false after 3 s of silence
-   */
   const broadcastTyping = useCallback(() => {
-    if (!channelRef.current || !profile) return
+    if (!channelRef.current || !profile || !user) return
 
-    // Send "started typing" only on the leading edge of each burst
     if (!isTypingRef.current) {
       isTypingRef.current = true
       channelRef.current.send({
         type: 'broadcast',
         event: 'typing',
         payload: {
-          userId:   user.id,
+          userId: user.id,
           username: profile.display_name || profile.username,
           isTyping: true,
         },
       })
     }
 
-    // Reset the silence timer on every keystroke
     clearTimeout(typingTimerRef.current)
     typingTimerRef.current = setTimeout(() => {
       isTypingRef.current = false
@@ -166,102 +210,225 @@ export function ChatProvider({ children }) {
         type: 'broadcast',
         event: 'typing',
         payload: {
-          userId:   user.id,
+          userId: user.id,
           username: profile.display_name || profile.username,
           isTyping: false,
         },
       })
     }, 3000)
-  }, [user?.id, profile])
+  }, [profile, user])
 
-  /**
-   * Call this when the user finishes sending so the indicator clears immediately.
-   */
   const clearTyping = useCallback(() => {
     clearTimeout(typingTimerRef.current)
-    if (!isTypingRef.current || !channelRef.current || !profile) return
+    if (!isTypingRef.current || !channelRef.current || !profile || !user) return
+
     isTypingRef.current = false
     channelRef.current.send({
       type: 'broadcast',
       event: 'typing',
       payload: {
-        userId:   user.id,
+        userId: user.id,
         username: profile.display_name || profile.username,
         isTyping: false,
       },
     })
-  }, [user?.id, profile])
+  }, [profile, user])
 
-  // ── Message send ──────────────────────────────────────────────────────────
   async function sendMessage(communityId, content, fileUrl = null, messageType = 'text') {
     if (!user) return
-    clearTyping() // stop typing indicator the moment we send
+
+    clearTyping()
+
     const { error } = await supabase.from('messages').insert({
       community_id: communityId,
-      sender_id:    user.id,
+      sender_id: user.id,
       content,
-      file_url:     fileUrl,
+      file_url: fileUrl,
       message_type: messageType,
     })
+
     if (error) throw error
   }
 
-  // ── Media upload (Supabase Storage, 5 MB cap) ─────────────────────────────
   async function uploadMedia(file) {
-    const MAX_SIZE = 5 * 1024 * 1024
-    if (file.size > MAX_SIZE) throw new Error('File exceeds 5 MB limit')
+    const maxSize = 5 * 1024 * 1024
+    if (file.size > maxSize) throw new Error('File exceeds 5 MB limit')
 
-    const ext  = file.name.split('.').pop()
+    const ext = file.name.split('.').pop()
     const path = `${user.id}/${Date.now()}.${ext}`
 
     const { error } = await supabase.storage
       .from('media')
       .upload(path, file, { contentType: file.type })
+
     if (error) throw error
 
     const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(path)
     return publicUrl
   }
 
-  // ── Community helpers ─────────────────────────────────────────────────────
   async function joinCommunity(communityId) {
     if (!user) return
+
     const { error } = await supabase.from('community_members').insert({
       community_id: communityId,
-      user_id:      user.id,
-      role:         'member',
+      user_id: user.id,
+      role: ROLES.MEMBER,
     })
+
     if (error) throw error
-    await loadCommunities()
+
+    const nextCommunities = await loadCommunities()
+    const nextActive = nextCommunities.find((community) => community.id === communityId)
+    if (nextActive) setActiveCommunity(nextActive)
   }
 
   async function createCommunity(payload) {
-    if (!user) return
+    if (!user) return null
+
     const { data, error } = await supabase
       .from('communities')
       .insert({ ...payload, owner_id: user.id })
       .select()
       .single()
+
     if (error) throw error
+
     const { error: memberError } = await supabase.from('community_members').insert({
       community_id: data.id,
-      user_id:      user.id,
-      role:         'owner',
+      user_id: user.id,
+      role: ROLES.OWNER,
     })
+
     if (memberError) throw memberError
+
+    const nextCommunity = { ...data, role: ROLES.OWNER }
+    mergeCommunity(nextCommunity)
     await loadCommunities()
-    setActiveCommunity(data)
-    return data
+    setActiveCommunity(nextCommunity)
+    return nextCommunity
+  }
+
+  async function updateCommunity(communityId, updates) {
+    const { data, error } = await supabase
+      .from('communities')
+      .update(updates)
+      .eq('id', communityId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const nextCommunity = {
+      ...data,
+      role: activeCommunity?.id === communityId ? activeCommunity.role : communities.find((community) => community.id === communityId)?.role,
+    }
+
+    mergeCommunity(nextCommunity)
+    return nextCommunity
+  }
+
+  async function findProfileByIdentifier(identifier) {
+    const value = identifier.trim()
+    if (!value) throw new Error('Enter a username or email.')
+
+    let result = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, email')
+      .ilike('username', value)
+      .maybeSingle()
+
+    if (result.error) throw result.error
+    if (result.data) return result.data
+
+    result = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, email')
+      .ilike('email', value)
+      .maybeSingle()
+
+    if (result.error) throw result.error
+    return result.data
+  }
+
+  async function addCommunityMember(communityId, identifier) {
+    const targetProfile = await findProfileByIdentifier(identifier)
+    if (!targetProfile) throw new Error('No user found with that username or email.')
+
+    const { error } = await supabase.from('community_members').insert({
+      community_id: communityId,
+      user_id: targetProfile.id,
+      role: ROLES.MEMBER,
+    })
+
+    if (error) throw error
+
+    await loadMembers(communityId)
+    return targetProfile
+  }
+
+  async function removeCommunityMember(memberId, communityId) {
+    const { error } = await supabase
+      .from('community_members')
+      .delete()
+      .eq('id', memberId)
+
+    if (error) throw error
+
+    const nextMembers = await loadMembers(communityId)
+
+    if (user && nextMembers.every((member) => member.user_id !== user.id)) {
+      setActiveCommunity(null)
+      setMessages([])
+      setTypingUsers([])
+      await loadCommunities()
+    }
+  }
+
+  async function deleteCommunity(communityId) {
+    const { error } = await supabase
+      .from('communities')
+      .delete()
+      .eq('id', communityId)
+
+    if (error) throw error
+
+    setMessages([])
+    setMembers([])
+    setTypingUsers([])
+
+    const nextCommunities = await loadCommunities()
+    if (!nextCommunities.some((community) => community.id === communityId)) {
+      setActiveCommunity(nextCommunities[0] || null)
+    }
   }
 
   return (
-    <ChatContext.Provider value={{
-      communities, activeCommunity, setActiveCommunity,
-      messages, members, loading, typingUsers,
-      loadCommunities, sendMessage, uploadMedia,
-      joinCommunity, createCommunity,
-      broadcastTyping, clearTyping,
-    }}>
+    <ChatContext.Provider
+      value={{
+        communities,
+        activeCommunity,
+        setActiveCommunity,
+        activateCommunityById,
+        messages,
+        members,
+        loading,
+        typingUsers,
+        loadCommunities,
+        fetchCommunities: loadCommunities,
+        loadMembers,
+        sendMessage,
+        uploadMedia,
+        joinCommunity,
+        createCommunity,
+        updateCommunity,
+        addCommunityMember,
+        removeCommunityMember,
+        deleteCommunity,
+        broadcastTyping,
+        clearTyping,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   )

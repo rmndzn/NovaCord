@@ -188,3 +188,28 @@
   font-size: 12px;
   padding: 8px;
 }
+
+@media (max-width: 768px) {
+  .discover-header {
+    padding: 18px 14px 16px;
+  }
+
+  .discover-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .discover-search {
+    min-width: 0;
+  }
+
+  .filter-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .communities-grid {
+    grid-template-columns: 1fr;
+    padding: 16px 14px 24px;
+  }
+}

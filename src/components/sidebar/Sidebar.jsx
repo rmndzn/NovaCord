@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, Compass, Settings, Plus, Hash, Users, Lock, LogOut, ChevronDown } from 'lucide-react'
+import { Search, Compass, Settings, Plus, Hash, Users, Lock, LogOut, X } from 'lucide-react'
 import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
 import { formatDistanceToNow } from 'date-fns'
 import './Sidebar.css'
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }) {
   const { profile, signOut } = useAuth()
   const { communities, activeCommunity, setActiveCommunity } = useChat()
   const [search, setSearch] = useState('')
@@ -15,13 +15,14 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const filtered = communities.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = communities.filter((community) =>
+    community.name.toLowerCase().includes(search.toLowerCase())
   )
 
   function handleSelectCommunity(community) {
     setActiveCommunity(community)
     navigate(`/app/chat/${community.id}`)
+    onClose?.()
   }
 
   async function handleSignOut() {
@@ -29,32 +30,39 @@ export default function Sidebar() {
     navigate('/login')
   }
 
+  function goTo(path) {
+    navigate(path)
+    onClose?.()
+  }
+
   const isActive = (path) => location.pathname === path
 
   return (
-    <aside className="sidebar">
-      {/* Logo */}
+    <aside className={`sidebar ${open ? 'open' : ''}`}>
       <div className="sidebar-logo">
-        <div className="logo-icon">N</div>
-        <span className="logo-text">NovaCord</span>
+        <div className="logo-lockup">
+          <div className="logo-icon">N</div>
+          <span className="logo-text">NovaCord</span>
+        </div>
+        <button className="sidebar-close-btn" onClick={onClose}>
+          <X size={16} />
+        </button>
       </div>
 
-      {/* Search */}
       <div className="sidebar-search">
         <Search size={14} />
         <input
           className="search-input"
           placeholder="Search chats..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
         />
       </div>
 
-      {/* Nav shortcuts */}
       <div className="sidebar-nav">
         <button
           className={`nav-item ${isActive('/app/discover') ? 'active' : ''}`}
-          onClick={() => navigate('/app/discover')}
+          onClick={() => goTo('/app/discover')}
         >
           <Compass size={16} />
           <span>Discover</span>
@@ -63,11 +71,10 @@ export default function Sidebar() {
 
       <div className="divider" />
 
-      {/* Communities list */}
       <div className="sidebar-section">
         <div className="section-header">
-          <span className="section-title">COMMUNITIES</span>
-          <button className="icon-btn" onClick={() => navigate('/app/create-community')} title="Create Community">
+          <span className="section-title">Communities</span>
+          <button className="icon-btn" onClick={() => goTo('/app/create-community')} title="Create Community">
             <Plus size={14} />
           </button>
         </div>
@@ -77,13 +84,17 @@ export default function Sidebar() {
             <div className="empty-state">
               <Compass size={20} style={{ color: 'var(--text-faint)' }} />
               <p>No communities yet</p>
-              <button className="btn btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }} onClick={() => navigate('/app/discover')}>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 12, padding: '6px 12px' }}
+                onClick={() => goTo('/app/discover')}
+              >
                 Browse Discover
               </button>
             </div>
           )}
 
-          {filtered.map(community => (
+          {filtered.map((community) => (
             <ChatListItem
               key={community.id}
               community={community}
@@ -94,8 +105,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Bottom user bar */}
-      <div className="sidebar-user" onClick={() => setShowUserMenu(o => !o)}>
+      <div className="sidebar-user" onClick={() => setShowUserMenu((current) => !current)}>
         <div className="user-info">
           <Avatar src={profile?.avatar_url} name={profile?.display_name} size={32} ring status="online" />
           <div className="user-details">
@@ -104,17 +114,17 @@ export default function Sidebar() {
           </div>
         </div>
         <div className="user-actions">
-          <button className="icon-btn" onClick={(e) => { e.stopPropagation(); navigate('/app/settings') }}>
+          <button className="icon-btn" onClick={(event) => { event.stopPropagation(); goTo('/app/settings') }}>
             <Settings size={14} />
           </button>
         </div>
 
         {showUserMenu && (
           <div className="user-menu">
-            <button className="user-menu-item" onClick={() => navigate(`/app/profile/${profile?.username}`)}>
+            <button className="user-menu-item" onClick={() => goTo(`/app/profile/${profile?.username}`)}>
               View Profile
             </button>
-            <button className="user-menu-item" onClick={() => navigate('/app/settings')}>
+            <button className="user-menu-item" onClick={() => goTo('/app/settings')}>
               Settings
             </button>
             <div className="divider" />

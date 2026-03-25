@@ -55,3 +55,29 @@ export async function uploadBanner(file, userId) {
   const { data: { publicUrl } } = supabase.storage.from('banners').getPublicUrl(filename)
   return publicUrl
 }
+
+export async function uploadCommunityAvatar(file, communityId) {
+  validateFile(file)
+  const ext = file.name.split('.').pop()
+  const filename = `communities/${communityId}/avatar.${ext}`
+  const { error } = await supabase.storage.from('avatars').upload(filename, file, {
+    cacheControl: '3600',
+    upsert: true,
+  })
+  if (error) throw error
+  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filename)
+  return publicUrl
+}
+
+export async function uploadCommunityBanner(file, communityId) {
+  validateFile(file)
+  const ext = file.name.split('.').pop()
+  const filename = `communities/${communityId}/banner.${ext}`
+  const { error } = await supabase.storage.from('banners').upload(filename, file, {
+    cacheControl: '3600',
+    upsert: true,
+  })
+  if (error) throw error
+  const { data: { publicUrl } } = supabase.storage.from('banners').getPublicUrl(filename)
+  return publicUrl
+}

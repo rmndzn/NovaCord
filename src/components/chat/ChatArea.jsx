@@ -1,52 +1,82 @@
 import { useEffect, useRef, useState } from 'react'
-import { Hash, Users, Lock, Unlock, Image, Send, Loader, X } from 'lucide-react'
+import { useOutletContext, useParams } from 'react-router-dom'
+import {
+  Hash,
+  Users,
+  Lock,
+  Unlock,
+  Image,
+  Send,
+  Loader,
+  X,
+  Menu,
+  Settings2,
+} from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
 import Avatar from '../ui/Avatar'
+import CommunityManagePanel from './CommunityManagePanel'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import './ChatArea.css'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024
-
-const VALID_IMAGES = ['image/jpeg','image/jpg','image/png','image/webp','image/gif']
-const VALID_VIDEOS = ['video/mp4','video/webm','video/quicktime']
+const VALID_IMAGES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+const VALID_VIDEOS = ['video/mp4', 'video/webm', 'video/quicktime']
 
 export default function ChatArea() {
-  const { profile } = useAuth()
+  const { communityId } = useParams()
+  const { openSidebar } = useOutletContext() || {}
+  const { profile, user } = useAuth()
   const {
-    activeCommunity, messages, loading,
-    sendMessage, uploadMedia,
-    typingUsers, broadcastTyping, clearTyping,
+    communities,
+    activeCommunity,
+    activateCommunityById,
+    messages,
+    loading,
+    sendMessage,
+    uploadMedia,
+    typingUsers,
+    broadcastTyping,
+    members,
   } = useChat()
 
-  const [text, setText]                 = useState('')
-  const [sending, setSending]           = useState(false)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
   const [uploadPreview, setUploadPreview] = useState(null)
-  const [uploadFile, setUploadFile]     = useState(null)
-  const bottomRef   = useRef(null)
+  const [uploadFile, setUploadFile] = useState(null)
+  const [showManagePanel, setShowManagePanel] = useState(false)
+  const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
-  // Auto-scroll to bottom when messages arrive
+  useEffect(() => {
+    if (!communityId) return
+    if (activeCommunity?.id === communityId) return
+
+    activateCommunityById(communityId).catch(() => {
+      toast.error('Unable to open that community right now.')
+    })
+  }, [communityId, activeCommunity?.id, communities, activateCommunityById])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Clear stale input when switching community
   useEffect(() => {
     setText('')
     setUploadFile(null)
     setUploadPreview(null)
+    setShowManagePanel(false)
   }, [activeCommunity?.id])
 
-  if (!activeCommunity) return <EmptyState />
+  if (!activeCommunity) return <EmptyState openSidebar={openSidebar} />
 
   const isChannel = activeCommunity.type === 'channel'
-  const isPrivate  = activeCommunity.visibility === 'private'
+  const isPrivate = activeCommunity.visibility === 'private'
+  const isOwner = activeCommunity.owner_id === user?.id || activeCommunity.role === 'owner'
 
-  // ── File selection ────────────────────────────────────────────────────────
-  function handleFileSelect(e) {
-    const file = e.target.files[0]
+  function handleFileSelect(event) {
+    const file = event.target.files?.[0]
     if (!file) return
 
     if (file.size > MAX_FILE_SIZE) {
@@ -60,8 +90,9 @@ export default function ChatArea() {
 
     setUploadFile(file)
     const reader = new FileReader()
-    reader.onloadend = () =>
+    reader.onloadend = () => {
       setUploadPreview({ url: reader.result, type: file.type, name: file.name })
+    }
     reader.readAsDataURL(file)
   }
 
@@ -71,37 +102,35 @@ export default function ChatArea() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ── Send message ──────────────────────────────────────────────────────────
   async function handleSend() {
     if (!text.trim() && !uploadFile) return
+
     setSending(true)
     try {
       if (uploadFile) {
-        const fileUrl  = await uploadMedia(uploadFile)
-        const msgType  = uploadFile.type.startsWith('video/') ? 'video' : 'image'
-        await sendMessage(activeCommunity.id, text.trim() || uploadFile.name, fileUrl, msgType)
+        const fileUrl = await uploadMedia(uploadFile)
+        const messageType = uploadFile.type.startsWith('video/') ? 'video' : 'image'
+        await sendMessage(activeCommunity.id, text.trim() || uploadFile.name, fileUrl, messageType)
         clearUpload()
       } else {
         await sendMessage(activeCommunity.id, text.trim())
       }
       setText('')
-      // clearTyping is called inside sendMessage in ChatContext
-    } catch (err) {
-      toast.error(err.message || 'Failed to send message')
+    } catch (error) {
+      toast.error(error.message || 'Failed to send message')
     } finally {
       setSending(false)
     }
   }
 
-  // ── Input change: broadcast typing via Supabase Realtime ──────────────────
-  function handleTextChange(e) {
-    setText(e.target.value)
-    if (e.target.value.trim()) broadcastTyping()
+  function handleTextChange(event) {
+    setText(event.target.value)
+    if (event.target.value.trim()) broadcastTyping()
   }
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
+  function handleKeyDown(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
       handleSend()
     }
   }
@@ -109,153 +138,185 @@ export default function ChatArea() {
   const groupedMessages = groupMessagesByDate(messages)
 
   return (
-    <div className="chat-area">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="chat-header">
-        <div className="chat-header-info">
-          {activeCommunity.avatar_url ? (
-            <img
-              src={activeCommunity.avatar_url}
-              alt=""
-              style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover' }}
-            />
-          ) : (
-            <div className="channel-icon">
-              {isChannel ? <Hash size={18} /> : <Users size={18} />}
+    <>
+      <div className="chat-area">
+        <div
+          className="chat-hero"
+          style={{
+            backgroundImage: activeCommunity.banner_url
+              ? `linear-gradient(180deg, rgba(4, 1, 12, 0.35), rgba(5, 0, 15, 0.96)), url(${activeCommunity.banner_url})`
+              : undefined,
+          }}
+        >
+          {!activeCommunity.banner_url && <div className="chat-hero-fallback" />}
+          <div className="chat-header">
+            <div className="chat-header-info">
+              <button className="mobile-sidebar-btn" onClick={() => openSidebar?.()}>
+                <Menu size={18} />
+              </button>
+
+              {activeCommunity.avatar_url ? (
+                <img
+                  src={activeCommunity.avatar_url}
+                  alt={activeCommunity.name}
+                  className="chat-header-avatar"
+                />
+              ) : (
+                <div className="channel-icon">
+                  {isChannel ? <Hash size={18} /> : <Users size={18} />}
+                </div>
+              )}
+
+              <div>
+                <div className="chat-header-name">{activeCommunity.name}</div>
+                <div className="chat-header-meta">
+                  {isPrivate ? <Lock size={11} /> : <Unlock size={11} />}
+                  <span>{isPrivate ? 'Private' : 'Public'} · {isChannel ? 'Channel' : 'Group'}</span>
+                  <span>·</span>
+                  <span>{members.length} members</span>
+                </div>
+              </div>
             </div>
-          )}
-          <div>
-            <div className="chat-header-name">{activeCommunity.name}</div>
-            <div className="chat-header-meta">
-              {isPrivate ? <Lock size={11} /> : <Unlock size={11} />}
-              <span>{isPrivate ? 'Private' : 'Public'} · {isChannel ? 'Channel' : 'Group'}</span>
-            </div>
+
+            {isOwner && (
+              <button className="chat-manage-btn" onClick={() => setShowManagePanel(true)}>
+                <Settings2 size={16} />
+                Manage
+              </button>
+            )}
+          </div>
+
+          <div className="chat-community-summary">
+            <p className="chat-community-kicker">Community Space</p>
+            <h1>{activeCommunity.name}</h1>
+            <p>{activeCommunity.description || 'Welcome to your community hub. Start the conversation and shape the vibe.'}</p>
           </div>
         </div>
-      </div>
 
-      {/* ── Messages ───────────────────────────────────────────────────────── */}
-      <div className="messages-area">
-        {loading ? (
-          <div className="loading-messages">
-            {[...Array(5)].map((_, i) => <MessageSkeleton key={i} />)}
+        <div className="messages-area">
+          {loading ? (
+            <div className="loading-messages">
+              {[...Array(5)].map((_, index) => <MessageSkeleton key={index} />)}
+            </div>
+          ) : (
+            <>
+              {messages.length === 0 && (
+                <div className="empty-chat">
+                  <div className="empty-chat-icon">
+                    {isChannel ? <Hash size={40} /> : <Users size={40} />}
+                  </div>
+                  <h3>Welcome to {activeCommunity.name}</h3>
+                  <p>{activeCommunity.description || 'This is the beginning of something great.'}</p>
+                </div>
+              )}
+
+              {groupedMessages.map(({ date, msgs }) => (
+                <div key={date}>
+                  <div className="date-separator">
+                    <div className="date-line" />
+                    <span className="date-label">{date}</span>
+                    <div className="date-line" />
+                  </div>
+
+                  {msgs.map((message, index) => {
+                    const isOwn = message.sender_id === profile?.id
+                    const prevMessage = msgs[index - 1]
+                    const isGrouped = Boolean(
+                      prevMessage &&
+                      prevMessage.sender_id === message.sender_id &&
+                      new Date(message.created_at) - new Date(prevMessage.created_at) < 300000
+                    )
+
+                    return (
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        isOwn={isOwn}
+                        isGrouped={isGrouped}
+                      />
+                    )
+                  })}
+                </div>
+              ))}
+
+              {typingUsers.length > 0 && (
+                <div className="typing-indicator">
+                  <div className="typing-dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <span>{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</span>
+                </div>
+              )}
+
+              <div ref={bottomRef} />
+            </>
+          )}
+        </div>
+
+        {uploadPreview && (
+          <div className="upload-preview">
+            <div className="preview-item">
+              {uploadPreview.type.startsWith('video/') ? (
+                <video src={uploadPreview.url} style={{ maxHeight: 120, borderRadius: 8 }} />
+              ) : (
+                <img src={uploadPreview.url} alt="preview" style={{ maxHeight: 120, borderRadius: 8 }} />
+              )}
+              <span className="preview-name">{uploadPreview.name}</span>
+            </div>
+            <button className="remove-preview" onClick={clearUpload}>
+              <X size={14} />
+            </button>
           </div>
-        ) : (
-          <>
-            {messages.length === 0 && (
-              <div className="empty-chat">
-                <div className="empty-chat-icon">
-                  {isChannel ? <Hash size={40} /> : <Users size={40} />}
-                </div>
-                <h3>Welcome to {activeCommunity.name}</h3>
-                <p>{activeCommunity.description || 'This is the beginning of something great.'}</p>
-              </div>
-            )}
-
-            {groupedMessages.map(({ date, msgs }) => (
-              <div key={date}>
-                <div className="date-separator">
-                  <div className="date-line" />
-                  <span className="date-label">{date}</span>
-                  <div className="date-line" />
-                </div>
-
-                {msgs.map((msg, i) => {
-                  const isOwn    = msg.sender_id === profile?.id
-                  const prevMsg  = msgs[i - 1]
-                  const isGrouped =
-                    prevMsg &&
-                    prevMsg.sender_id === msg.sender_id &&
-                    new Date(msg.created_at) - new Date(prevMsg.created_at) < 300_000
-                  return (
-                    <MessageBubble
-                      key={msg.id}
-                      message={msg}
-                      isOwn={isOwn}
-                      isGrouped={isGrouped}
-                    />
-                  )
-                })}
-              </div>
-            ))}
-
-            {/* ── Typing indicator (powered by Supabase Realtime broadcast) ── */}
-            {typingUsers.length > 0 && (
-              <div className="typing-indicator">
-                <div className="typing-dots">
-                  <span /><span /><span />
-                </div>
-                <span>
-                  {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
-                </span>
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </>
         )}
-      </div>
 
-      {/* ── Upload preview ─────────────────────────────────────────────────── */}
-      {uploadPreview && (
-        <div className="upload-preview">
-          <div className="preview-item">
-            {uploadPreview.type.startsWith('video/') ? (
-              <video src={uploadPreview.url} style={{ maxHeight: 120, borderRadius: 8 }} />
-            ) : (
-              <img src={uploadPreview.url} alt="preview" style={{ maxHeight: 120, borderRadius: 8 }} />
-            )}
-            <span className="preview-name">{uploadPreview.name}</span>
-          </div>
-          <button className="remove-preview" onClick={clearUpload}>
-            <X size={14} />
+        <div className="chat-input-area">
+          <button className="attach-btn" onClick={() => fileInputRef.current?.click()}>
+            <Image size={18} />
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*,video/mp4,video/webm"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <textarea
+            className="message-input"
+            placeholder={`Message ${activeCommunity.name}...`}
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            rows={1}
+          />
+
+          <button
+            className={`send-btn ${(text.trim() || uploadFile) && !sending ? 'active' : ''}`}
+            onClick={handleSend}
+            disabled={sending || (!text.trim() && !uploadFile)}
+          >
+            {sending
+              ? <Loader size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
+              : <Send size={18} />}
           </button>
         </div>
-      )}
-
-      {/* ── Input bar ──────────────────────────────────────────────────────── */}
-      <div className="chat-input-area">
-        <button className="attach-btn" onClick={() => fileInputRef.current?.click()}>
-          <Image size={18} />
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/*,video/mp4,video/webm"
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-        />
-
-        <textarea
-          className="message-input"
-          placeholder={`Message ${activeCommunity.name}…`}
-          value={text}
-          onChange={handleTextChange}
-          onKeyDown={handleKeyDown}
-          rows={1}
-        />
-
-        <button
-          className={`send-btn ${(text.trim() || uploadFile) && !sending ? 'active' : ''}`}
-          onClick={handleSend}
-          disabled={sending || (!text.trim() && !uploadFile)}
-        >
-          {sending
-            ? <Loader size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
-            : <Send size={18} />
-          }
-        </button>
       </div>
-    </div>
+
+      <CommunityManagePanel
+        community={activeCommunity}
+        open={showManagePanel}
+        onClose={() => setShowManagePanel(false)}
+      />
+    </>
   )
 }
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function MessageBubble({ message, isOwn, isGrouped }) {
   const isImage = message.message_type === 'image'
   const isVideo = message.message_type === 'video'
-  const sender  = message.profiles
+  const sender = message.profiles
 
   return (
     <div className={`message ${isOwn ? 'own' : ''} ${isGrouped ? 'grouped' : ''}`}>
@@ -309,10 +370,14 @@ function MessageSkeleton() {
   )
 }
 
-function EmptyState() {
+function EmptyState({ openSidebar }) {
   return (
     <div className="empty-channel-state">
       <div style={{ textAlign: 'center' }}>
+        <button className="mobile-sidebar-empty-btn" onClick={() => openSidebar?.()}>
+          <Menu size={18} />
+          Browse Communities
+        </button>
         <div style={{ fontSize: 64, marginBottom: 16 }}>⚡</div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--violet-300)', marginBottom: 8 }}>
           Select a Community
@@ -325,14 +390,12 @@ function EmptyState() {
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function groupMessagesByDate(messages) {
   const groups = {}
-  messages.forEach(msg => {
-    const date = format(new Date(msg.created_at), 'MMMM d, yyyy')
+  messages.forEach((message) => {
+    const date = format(new Date(message.created_at), 'MMMM d, yyyy')
     if (!groups[date]) groups[date] = []
-    groups[date].push(msg)
+    groups[date].push(message)
   })
   return Object.entries(groups).map(([date, msgs]) => ({ date, msgs }))
 }
