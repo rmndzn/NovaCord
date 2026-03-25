@@ -104,7 +104,7 @@
 
   .app-main {
     margin-left: 66px;
-    padding-bottom: 76px;
+    padding-bottom: 96px;
     width: calc(100vw - 66px);
     max-width: calc(100vw - 66px);
     overflow-x: hidden;
@@ -115,13 +115,17 @@
     align-items: center;
     justify-content: space-between;
     position: fixed;
-    left: 66px;
-    right: 0;
-    bottom: 0;
-    height: 76px;
+    left: 74px;
+    right: auto;
+    bottom: 10px;
+    width: min(320px, calc(100vw - 86px));
+    max-width: calc(100vw - 86px);
+    height: 78px;
     padding: 10px 12px;
     background: rgba(8, 0, 20, 0.96);
-    border-top: 1px solid rgba(139, 92, 246, 0.2);
+    border: 1px solid rgba(139, 92, 246, 0.24);
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
     z-index: 13;
     backdrop-filter: blur(18px);
   }
@@ -169,7 +173,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: auto;
+    margin-left: 6px;
     flex-shrink: 0;
   }
 
