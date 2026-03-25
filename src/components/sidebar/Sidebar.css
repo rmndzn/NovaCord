@@ -366,6 +366,7 @@
     min-width: min(86vw, 320px);
     z-index: 15;
     box-shadow: 20px 0 40px rgba(0, 0, 0, 0.32);
+    padding-bottom: 108px;
   }
 
   .sidebar.open {
@@ -374,5 +375,28 @@
 
   .sidebar-close-btn {
     display: inline-flex;
+  }
+
+  .chat-list {
+    padding-bottom: 12px;
+  }
+
+  .sidebar-user {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    border: 1px solid rgba(139, 92, 246, 0.18);
+    border-radius: 16px;
+    background: rgba(12, 0, 28, 0.96);
+    backdrop-filter: blur(24px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+    z-index: 16;
+  }
+
+  .user-menu {
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
   }
 }

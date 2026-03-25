@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useOutletContext, useParams } from 'react-router-dom'
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import {
+  ArrowLeft,
   Hash,
   Users,
   Lock,
@@ -26,6 +27,7 @@ const VALID_VIDEOS = ['video/mp4', 'video/webm', 'video/quicktime']
 
 export default function ChatArea() {
   const { communityId } = useParams()
+  const navigate = useNavigate()
   const { openSidebar } = useOutletContext() || {}
   const { profile, user } = useAuth()
   const {
@@ -135,6 +137,14 @@ export default function ChatArea() {
     }
   }
 
+  function handleBack() {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      navigate('/app/discover')
+      return
+    }
+    openSidebar?.()
+  }
+
   const groupedMessages = groupMessagesByDate(messages)
 
   return (
@@ -151,7 +161,11 @@ export default function ChatArea() {
           {!activeCommunity.banner_url && <div className="chat-hero-fallback" />}
           <div className="chat-header">
             <div className="chat-header-info">
-              <button className="mobile-sidebar-btn" onClick={() => openSidebar?.()}>
+              <button className="chat-back-btn" onClick={handleBack} aria-label="Back">
+                <ArrowLeft size={18} />
+              </button>
+
+              <button className="mobile-sidebar-btn" onClick={() => openSidebar?.()} aria-label="Open sidebar">
                 <Menu size={18} />
               </button>
 
@@ -171,8 +185,8 @@ export default function ChatArea() {
                 <div className="chat-header-name">{activeCommunity.name}</div>
                 <div className="chat-header-meta">
                   {isPrivate ? <Lock size={11} /> : <Unlock size={11} />}
-                  <span>{isPrivate ? 'Private' : 'Public'} · {isChannel ? 'Channel' : 'Group'}</span>
-                  <span>·</span>
+                  <span>{isPrivate ? 'Private' : 'Public'} | {isChannel ? 'Channel' : 'Group'}</span>
+                  <span>|</span>
                   <span>{members.length} members</span>
                 </div>
               </div>
@@ -378,7 +392,7 @@ function EmptyState({ openSidebar }) {
           <Menu size={18} />
           Browse Communities
         </button>
-        <div style={{ fontSize: 64, marginBottom: 16 }}>⚡</div>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>N</div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--violet-300)', marginBottom: 8 }}>
           Select a Community
         </h2>

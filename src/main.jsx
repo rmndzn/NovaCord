@@ -17,7 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             color: '#f0eaff',
             border: '1px solid rgba(139,92,246,0.3)',
             backdropFilter: 'blur(20px)',
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "'Poppins', sans-serif",
             fontSize: '14px',
           },
           success: { iconTheme: { primary: '#a78bfa', secondary: '#05040a' } },

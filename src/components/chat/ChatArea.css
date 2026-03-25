@@ -52,6 +52,7 @@
 }
 
 .mobile-sidebar-btn,
+.chat-back-btn,
 .chat-manage-btn,
 .mobile-sidebar-empty-btn {
   display: inline-flex;
@@ -66,6 +67,13 @@
 
 .mobile-sidebar-btn {
   display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.chat-back-btn {
   width: 40px;
   height: 40px;
   border-radius: 12px;
@@ -488,6 +496,10 @@
 
   .mobile-sidebar-btn,
   .mobile-sidebar-empty-btn {
+    display: inline-flex;
+  }
+
+  .chat-back-btn {
     display: inline-flex;
   }
 

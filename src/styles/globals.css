@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap');
+
 /* NOVACORD DESIGN SYSTEM - Black + Violet Glassmorphism */
 
 :root {
@@ -44,9 +46,9 @@
   --shadow-md: 0 4px 20px rgba(0,0,0,0.5);
   --shadow-lg: 0 8px 40px rgba(0,0,0,0.7);
   --shadow-float: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(139,92,246,0.15);
-  --font-display: 'Orbitron', monospace;
-  --font-heading: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
+  --font-display: 'Montserrat', sans-serif;
+  --font-heading: 'Montserrat', sans-serif;
+  --font-body: 'Poppins', sans-serif;
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;
