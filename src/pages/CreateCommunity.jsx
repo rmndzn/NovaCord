@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Hash, Users, Globe, Lock, ArrowLeft } from 'lucide-react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useChat } from '../context/ChatContext'
 import toast from 'react-hot-toast'
@@ -9,7 +8,7 @@ import './CreateCommunity.css'
 
 export default function CreateCommunity() {
   const { user } = useAuth()
-  const { fetchCommunities } = useChat()
+  const { createCommunity } = useChat()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', description: '', type: 'group', visibility: 'public' })
   const [loading, setLoading] = useState(false)
@@ -18,25 +17,15 @@ export default function CreateCommunity() {
 
   async function handleCreate() {
     if (!form.name.trim()) return toast.error('Community name is required')
+    if (!user) return toast.error('Please sign in again before creating a community')
     setLoading(true)
     try {
-      const { data, error } = await supabase.from('communities').insert({
+      const data = await createCommunity({
         name: form.name.trim(),
         description: form.description.trim(),
         type: form.type,
         visibility: form.visibility,
-        owner_id: user.id,
-      }).select().single()
-
-      if (error) throw error
-
-      await supabase.from('community_members').insert({
-        community_id: data.id,
-        user_id: user.id,
-        role: 'owner',
       })
-
-      await fetchCommunities()
       toast.success('Community created!')
       navigate(`/app/chat/${data.id}`)
     } catch (err) {

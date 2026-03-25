@@ -243,12 +243,14 @@ export function ChatProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    await supabase.from('community_members').insert({
+    const { error: memberError } = await supabase.from('community_members').insert({
       community_id: data.id,
       user_id:      user.id,
       role:         'owner',
     })
+    if (memberError) throw memberError
     await loadCommunities()
+    setActiveCommunity(data)
     return data
   }
 
