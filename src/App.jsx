@@ -6,6 +6,7 @@ import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Discover from './pages/Discover'
+import Chats from './pages/Chats'
 import ChatArea from './components/chat/ChatArea'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
@@ -26,6 +27,7 @@ export default function App() {
             </PrivateRoute>
           }>
             <Route index element={<Discover />} />
+            <Route path="chats" element={<Chats />} />
             <Route path="discover" element={<Discover />} />
             <Route path="chat/:communityId" element={<ChatArea />} />
             <Route path="profile/:username" element={<Profile />} />

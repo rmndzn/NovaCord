@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Compass, Home, Settings } from 'lucide-react'
+import { MessageCircle, Compass, Settings, User } from 'lucide-react'
 import Sidebar from '../sidebar/Sidebar'
-import Avatar from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
-import { useChat } from '../../context/ChatContext'
 import './AppLayout.css'
 
 export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { communities, activeCommunity, setActiveCommunity } = useChat()
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth <= 768
+  })
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true
     return window.innerWidth > 768
@@ -19,7 +20,9 @@ export default function AppLayout() {
 
   useEffect(() => {
     function handleResize() {
-      setSidebarOpen(window.innerWidth > 768)
+      const mobile = window.innerWidth <= 768
+      setIsMobile(mobile)
+      setSidebarOpen(!mobile)
     }
 
     window.addEventListener('resize', handleResize)
@@ -27,57 +30,25 @@ export default function AppLayout() {
   }, [])
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      setSidebarOpen(false)
-    }
-  }, [location.pathname])
+    if (isMobile) setSidebarOpen(false)
+  }, [location.pathname, isMobile])
 
-  function goToCommunity(community) {
-    setActiveCommunity(community)
-    navigate(`/app/chat/${community.id}`)
-  }
+  const mobileNav = useMemo(() => {
+    const usernamePath = profile?.username ? `/app/profile/${profile.username}` : '/app/settings'
+    return [
+      { key: 'chats', label: 'Chats', icon: MessageCircle, path: '/app/chats', active: location.pathname.startsWith('/app/chat') || location.pathname === '/app/chats' },
+      { key: 'discover', label: 'Discover', icon: Compass, path: '/app/discover', active: location.pathname === '/app/discover' },
+      { key: 'settings', label: 'Settings', icon: Settings, path: '/app/settings', active: location.pathname === '/app/settings' },
+      { key: 'profile', label: 'Profile', icon: User, path: usernamePath, active: location.pathname.startsWith('/app/profile/') },
+    ]
+  }, [location.pathname, profile?.username])
 
   return (
     <div className="app-layout">
       <div className="app-bg" />
 
-      <aside className="mobile-community-rail">
-        <button
-          className={`mobile-rail-btn ${location.pathname === '/app/discover' ? 'active' : ''}`}
-          onClick={() => navigate('/app/discover')}
-          aria-label="Discover"
-        >
-          <Compass size={18} />
-        </button>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <div className="mobile-rail-divider" />
-
-        <div className="mobile-rail-list">
-          {communities.map((community) => {
-            const isActive = activeCommunity?.id === community.id || location.pathname === `/app/chat/${community.id}`
-            return (
-              <button
-                key={community.id}
-                className={`mobile-rail-btn community ${isActive ? 'active' : ''}`}
-                onClick={() => goToCommunity(community)}
-                aria-label={community.name}
-                title={community.name}
-              >
-                {community.avatar_url ? (
-                  <img src={community.avatar_url} alt={community.name} />
-                ) : (
-                  <span>{community.name?.slice(0, 2).toUpperCase() || 'C'}</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </aside>
-
-      <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
       {sidebarOpen && (
         <button
           className="app-sidebar-backdrop"
@@ -86,45 +57,27 @@ export default function AppLayout() {
         />
       )}
 
-      <main className="app-main">
-        <Outlet context={{ openSidebar: () => setSidebarOpen(true) }} />
+      <main className={`app-main ${isMobile ? 'mobile' : ''}`}>
+        <Outlet context={{ openSidebar: () => setSidebarOpen(true), isMobile }} />
       </main>
 
-      <div
-        className="mobile-profile-dock"
-        onClick={() => navigate(profile?.username ? `/app/profile/${profile.username}` : '/app/settings')}
-      >
-        <div className="mobile-profile-main">
-          <Avatar src={profile?.avatar_url} name={profile?.display_name} size={34} ring />
-          <div className="mobile-profile-copy">
-            <div className="mobile-profile-name">{profile?.display_name || 'User'}</div>
-            <div className="mobile-profile-username">@{profile?.username || 'unknown'}</div>
-          </div>
-        </div>
-
-        <div className="mobile-profile-actions">
-          <button
-            className="mobile-profile-action"
-            onClick={(event) => {
-              event.stopPropagation()
-              navigate('/app/discover')
-            }}
-            aria-label="Discover"
-          >
-            <Home size={16} />
-          </button>
-          <button
-            className="mobile-profile-action"
-            onClick={(event) => {
-              event.stopPropagation()
-              navigate('/app/settings')
-            }}
-            aria-label="Settings"
-          >
-            <Settings size={16} />
-          </button>
-        </div>
-      </div>
+      {isMobile && (
+        <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+          {mobileNav.map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.key}
+                className={`mobile-nav-item ${item.active ? 'active' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                <Icon size={18} />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+      )}
     </div>
   )
 }

@@ -146,11 +146,15 @@ export default function ChatArea() {
   }
 
   function handleBack() {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      navigate('/app/chats')
+      return
+    }
     if (typeof window !== 'undefined' && window.history.length > 1) {
       navigate(-1)
       return
     }
-    navigate('/app/discover')
+    navigate('/app/chats')
   }
 
   const groupedMessages = groupMessagesByDate(messages)
@@ -394,14 +398,14 @@ function EmptyState({ openSidebar }) {
       <div style={{ textAlign: 'center' }}>
         <button className="mobile-sidebar-empty-btn" onClick={() => openSidebar?.()}>
           <Menu size={18} />
-          Browse Communities
+          Open Community List
         </button>
         <div style={{ fontSize: 64, marginBottom: 16 }}>N</div>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--violet-300)', marginBottom: 8 }}>
           Select a Community
         </h2>
         <p style={{ color: 'var(--text-faint)', fontSize: 14 }}>
-          Choose a community from the sidebar to start chatting
+          Choose a joined community from Chats to start messaging
         </p>
       </div>
     </div>
