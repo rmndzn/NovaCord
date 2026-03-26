@@ -61,6 +61,7 @@ export default function ChatArea() {
   const [showManagePanel, setShowManagePanel] = useState(false)
   const [userBadges, setUserBadges] = useState({})
   const [replyingTo, setReplyingTo] = useState(null)
+  const [actionMessage, setActionMessage] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -92,6 +93,7 @@ export default function ChatArea() {
     setShowManagePanel(false)
     setUserBadges({})
     setReplyingTo(null)
+    setActionMessage(null)
   }, [activeCommunity?.id])
 
   useEffect(() => {
@@ -246,6 +248,16 @@ export default function ChatArea() {
     }
   }
 
+  function handleReplyFromSheet(message) {
+    setReplyingTo(message)
+    setActionMessage(null)
+  }
+
+  async function handleReactFromSheet(messageId, reactionType) {
+    await handleReact(messageId, reactionType)
+    setActionMessage(null)
+  }
+
   async function handleLeaveCommunity() {
     if (!activeCommunity) return
     if (!window.confirm(`Leave ${activeCommunity.name}?`)) return
@@ -369,6 +381,7 @@ export default function ChatArea() {
                         onMessageUser={handleQuickMessage}
                         onReply={(target) => setReplyingTo(target)}
                         onReact={handleReact}
+                        onLongPress={(target) => setActionMessage(target)}
                       />
                     )
                   })}
@@ -466,6 +479,47 @@ export default function ChatArea() {
         open={showManagePanel}
         onClose={() => setShowManagePanel(false)}
       />
+
+      {actionMessage && (
+        <div className="message-actions-sheet-overlay" onClick={() => setActionMessage(null)}>
+          <div className="message-actions-sheet" onClick={(event) => event.stopPropagation()}>
+            <p className="message-actions-title">
+              {actionMessage.profiles?.display_name || 'Message options'}
+            </p>
+            <p className="message-actions-snippet">
+              {actionMessage.content?.trim()
+                ? actionMessage.content.slice(0, 100)
+                : actionMessage.message_type !== 'text'
+                  ? `${actionMessage.message_type} attachment`
+                  : 'Message'}
+            </p>
+
+            <button
+              className="sheet-reply-btn"
+              onClick={() => handleReplyFromSheet(actionMessage)}
+            >
+              Reply
+            </button>
+
+            <div className="sheet-reaction-grid">
+              {REACTION_OPTIONS.map((reaction) => {
+                const count = messageReactions[actionMessage.id]?.byType?.[reaction.type] || 0
+                const selected = messageReactions[actionMessage.id]?.userReaction === reaction.type
+                return (
+                  <button
+                    key={reaction.type}
+                    className={`reaction-chip ${selected ? 'selected' : ''}`}
+                    onClick={() => handleReactFromSheet(actionMessage.id, reaction.type)}
+                  >
+                    <span>{reaction.label}</span>
+                    {count > 0 && <span>{count}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -481,13 +535,43 @@ function MessageBubble({
   onMessageUser,
   onReply,
   onReact,
+  onLongPress,
 }) {
   const isImage = message.message_type === 'image'
   const isVideo = message.message_type === 'video'
   const sender = message.profiles
+  const longPressTimerRef = useRef(null)
+
+  function clearLongPress() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  function handleTouchStart() {
+    clearLongPress()
+    longPressTimerRef.current = setTimeout(() => {
+      onLongPress?.(message)
+      longPressTimerRef.current = null
+    }, 420)
+  }
+
+  function handleContextMenu(event) {
+    event.preventDefault()
+    onLongPress?.(message)
+  }
 
   return (
-    <div className={`message ${isOwn ? 'own' : ''} ${isGrouped ? 'grouped' : ''}`}>
+    <div
+      className={`message ${isOwn ? 'own' : ''} ${isGrouped ? 'grouped' : ''}`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={clearLongPress}
+      onTouchCancel={clearLongPress}
+      onContextMenu={handleContextMenu}
+      onMouseLeave={clearLongPress}
+      onMouseUp={clearLongPress}
+    >
       {!isGrouped && !isOwn && sender && (
         <div className="hover-profile-wrap">
           <Avatar src={sender.avatar_url} name={sender.display_name} size={32} />
@@ -563,28 +647,20 @@ function MessageBubble({
             <p className="message-text">{message.content}</p>
           )}
 
-          <div className="message-actions-row">
-            <button className="message-reply-btn" onClick={() => onReply?.(message)}>
-              Reply
-            </button>
-            <div className="message-reactions">
-              {REACTION_OPTIONS.map((reaction) => {
-                const count = reactions?.byType?.[reaction.type] || 0
-                const selected = reactions?.userReaction === reaction.type
-                return (
-                  <button
-                    key={reaction.type}
-                    className={`reaction-chip ${selected ? 'selected' : ''}`}
-                    onClick={() => onReact?.(message.id, reaction.type)}
-                    title={reaction.label}
-                  >
-                    <span>{reaction.label}</span>
-                    {count > 0 && <span>{count}</span>}
-                  </button>
-                )
-              })}
+          {!!reactions?.byType && (
+            <div className="message-reactions message-reactions-inline">
+              {Object.entries(reactions.byType).map(([reactionType, count]) => (
+                <button
+                  key={reactionType}
+                  className={`reaction-chip ${reactions.userReaction === reactionType ? 'selected' : ''}`}
+                  onClick={() => onReact?.(message.id, reactionType)}
+                >
+                  <span>{REACTION_OPTIONS.find((option) => option.type === reactionType)?.label || reactionType}</span>
+                  <span>{count}</span>
+                </button>
+              ))}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

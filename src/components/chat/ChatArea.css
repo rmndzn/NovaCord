@@ -490,6 +490,10 @@
   flex-wrap: wrap;
 }
 
+.message-reactions-inline {
+  margin-top: 6px;
+}
+
 .reaction-chip {
   border: 1px solid rgba(139, 92, 246, 0.22);
   background: rgba(139, 92, 246, 0.08);
@@ -508,6 +512,61 @@
 .reaction-chip.selected {
   background: rgba(139, 92, 246, 0.24);
   border-color: rgba(167, 139, 250, 0.62);
+}
+
+.message-actions-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 120;
+  padding: 12px;
+}
+
+.message-actions-sheet {
+  width: min(560px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  background: rgba(10, 2, 25, 0.98);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  padding: 14px;
+}
+
+.message-actions-title {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.message-actions-snippet {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-reply-btn {
+  width: 100%;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.14);
+  color: var(--violet-200);
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.sheet-reaction-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .typing-indicator {
@@ -834,5 +893,14 @@
 
   .message-bubble {
     width: fit-content;
+  }
+
+  .message-actions-sheet-overlay {
+    padding: 10px;
+  }
+
+  .message-actions-sheet {
+    border-radius: 16px;
+    padding: 12px;
   }
 }
