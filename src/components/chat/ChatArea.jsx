@@ -27,10 +27,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024
 const VALID_IMAGES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
 const VALID_VIDEOS = ['video/mp4', 'video/webm', 'video/quicktime']
 const REACTION_OPTIONS = [
-  { type: 'like', label: 'Like' },
-  { type: 'love', label: 'Love' },
-  { type: 'haha', label: 'Haha' },
-  { type: 'sad', label: 'Sad' },
+  { type: 'like', label: 'Like', emoji: '\u{1F44D}' },
+  { type: 'love', label: 'Love', emoji: '\u{2764}\u{FE0F}' },
+  { type: 'haha', label: 'Haha', emoji: '\u{1F602}' },
+  { type: 'sad', label: 'Sad', emoji: '\u{1F622}' },
 ]
 
 export default function ChatArea() {
@@ -246,11 +246,6 @@ export default function ChatArea() {
     } catch (error) {
       toast.error(error.message || 'Could not react to message')
     }
-  }
-
-  function handleReplyFromSheet(message) {
-    setReplyingTo(message)
-    setActionMessage(null)
   }
 
   async function handleReactFromSheet(messageId, reactionType) {
@@ -484,7 +479,7 @@ export default function ChatArea() {
         <div className="message-actions-sheet-overlay" onClick={() => setActionMessage(null)}>
           <div className="message-actions-sheet" onClick={(event) => event.stopPropagation()}>
             <p className="message-actions-title">
-              {actionMessage.profiles?.display_name || 'Message options'}
+              React to message
             </p>
             <p className="message-actions-snippet">
               {actionMessage.content?.trim()
@@ -493,13 +488,6 @@ export default function ChatArea() {
                   ? `${actionMessage.message_type} attachment`
                   : 'Message'}
             </p>
-
-            <button
-              className="sheet-reply-btn"
-              onClick={() => handleReplyFromSheet(actionMessage)}
-            >
-              Reply
-            </button>
 
             <div className="sheet-reaction-grid">
               {REACTION_OPTIONS.map((reaction) => {
@@ -511,7 +499,7 @@ export default function ChatArea() {
                     className={`reaction-chip ${selected ? 'selected' : ''}`}
                     onClick={() => handleReactFromSheet(actionMessage.id, reaction.type)}
                   >
-                    <span>{reaction.label}</span>
+                    <span>{reaction.emoji}</span>
                     {count > 0 && <span>{count}</span>}
                   </button>
                 )
@@ -647,6 +635,10 @@ function MessageBubble({
             <p className="message-text">{message.content}</p>
           )}
 
+          <button className="message-reply-btn" onClick={() => onReply?.(message)}>
+            Reply
+          </button>
+
           {!!reactions?.byType && (
             <div className="message-reactions message-reactions-inline">
               {Object.entries(reactions.byType).map(([reactionType, count]) => (
@@ -655,7 +647,7 @@ function MessageBubble({
                   className={`reaction-chip ${reactions.userReaction === reactionType ? 'selected' : ''}`}
                   onClick={() => onReact?.(message.id, reactionType)}
                 >
-                  <span>{REACTION_OPTIONS.find((option) => option.type === reactionType)?.label || reactionType}</span>
+                  <span>{REACTION_OPTIONS.find((option) => option.type === reactionType)?.emoji || reactionType}</span>
                   <span>{count}</span>
                 </button>
               ))}

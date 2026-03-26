@@ -481,6 +481,8 @@
   font-weight: 600;
   padding: 4px 10px;
   cursor: pointer;
+  width: fit-content;
+  margin-top: 2px;
 }
 
 .message-reactions {
@@ -550,20 +552,8 @@
   white-space: nowrap;
 }
 
-.sheet-reply-btn {
-  width: 100%;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  background: rgba(139, 92, 246, 0.14);
-  color: var(--violet-200);
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 10px 12px;
-  cursor: pointer;
-}
-
 .sheet-reaction-grid {
-  margin-top: 10px;
+  margin-top: 4px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
