@@ -604,56 +604,71 @@ function MessageBubble({
           </div>
         )}
 
-        <div className={`message-bubble ${isOwn ? 'own-bubble' : ''}`}>
-          {parentMessage && (
-            <button className="reply-reference" onClick={() => onReply?.(parentMessage)}>
-              <span className="reply-reference-author">
-                {`Replying to ${parentMessage.profiles?.display_name || 'user'}`}
-              </span>
-              <span className="reply-reference-text">
-                {parentMessage.content?.trim()
-                  ? parentMessage.content.slice(0, 80)
-                  : parentMessage.message_type !== 'text'
-                    ? `${parentMessage.message_type} attachment`
-                    : 'Message'}
-              </span>
-            </button>
-          )}
+        <div className="message-bubble-row">
+          <div className="hover-reaction-strip">
+            {REACTION_OPTIONS.map((reaction) => (
+              <button
+                key={reaction.type}
+                className={`reaction-chip ${(reactions?.userReaction === reaction.type) ? 'selected' : ''}`}
+                onClick={() => onReact?.(message.id, reaction.type)}
+                title={reaction.label}
+              >
+                <span>{reaction.emoji}</span>
+              </button>
+            ))}
+          </div>
 
-          {message.file_url && isImage && (
-            <img
-              src={message.file_url}
-              alt="media"
-              className="message-media"
-              onClick={() => window.open(message.file_url, '_blank')}
-            />
-          )}
-          {message.file_url && isVideo && (
-            <video src={message.file_url} controls className="message-media" />
-          )}
-          {message.content && message.content !== message.file_url && (
-            <p className="message-text">{message.content}</p>
-          )}
+          <div className={`message-bubble ${isOwn ? 'own-bubble' : ''}`}>
+            {parentMessage && (
+              <button className="reply-reference" onClick={() => onReply?.(parentMessage)}>
+                <span className="reply-reference-author">
+                  {`Replying to ${parentMessage.profiles?.display_name || 'user'}`}
+                </span>
+                <span className="reply-reference-text">
+                  {parentMessage.content?.trim()
+                    ? parentMessage.content.slice(0, 80)
+                    : parentMessage.message_type !== 'text'
+                      ? `${parentMessage.message_type} attachment`
+                      : 'Message'}
+                </span>
+              </button>
+            )}
+
+            {message.file_url && isImage && (
+              <img
+                src={message.file_url}
+                alt="media"
+                className="message-media"
+                onClick={() => window.open(message.file_url, '_blank')}
+              />
+            )}
+            {message.file_url && isVideo && (
+              <video src={message.file_url} controls className="message-media" />
+            )}
+            {message.content && message.content !== message.file_url && (
+              <p className="message-text">{message.content}</p>
+            )}
+          </div>
 
           <button className="message-reply-btn" onClick={() => onReply?.(message)}>
             Reply
           </button>
-
-          {!!reactions?.byType && (
-            <div className="message-reactions message-reactions-inline">
-              {Object.entries(reactions.byType).map(([reactionType, count]) => (
-                <button
-                  key={reactionType}
-                  className={`reaction-chip ${reactions.userReaction === reactionType ? 'selected' : ''}`}
-                  onClick={() => onReact?.(message.id, reactionType)}
-                >
-                  <span>{REACTION_OPTIONS.find((option) => option.type === reactionType)?.emoji || reactionType}</span>
-                  <span>{count}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
+
+        {!!reactions?.byType && (
+          <div className="message-reactions message-reactions-inline">
+            {Object.entries(reactions.byType).map(([reactionType, count]) => (
+              <button
+                key={reactionType}
+                className={`reaction-chip ${reactions.userReaction === reactionType ? 'selected' : ''}`}
+                onClick={() => onReact?.(message.id, reactionType)}
+              >
+                <span>{REACTION_OPTIONS.find((option) => option.type === reactionType)?.emoji || reactionType}</span>
+                <span>{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
