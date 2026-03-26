@@ -619,11 +619,7 @@ function MessageBubble({
           </div>
         )}
 
-        <div
-          className="message-bubble-row"
-          ref={bubbleRowRef}
-          onMouseEnter={() => setShowHoverReactions(true)}
-        >
+        <div className="message-bubble-row" ref={bubbleRowRef}>
           <div className={`hover-reaction-strip ${showHoverReactions ? 'open' : ''}`}>
             {REACTION_OPTIONS.map((reaction) => (
               <button
@@ -640,7 +636,10 @@ function MessageBubble({
             ))}
           </div>
 
-          <div className={`message-bubble ${isOwn ? 'own-bubble' : ''}`}>
+          <div
+            className={`message-bubble ${isOwn ? 'own-bubble' : ''}`}
+            onMouseEnter={() => setShowHoverReactions(true)}
+          >
             {parentMessage && (
               <button className="reply-reference" onClick={() => onReply?.(parentMessage)}>
                 <span className="reply-reference-author">
