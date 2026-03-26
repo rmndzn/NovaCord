@@ -12,6 +12,7 @@ import {
   X,
   Menu,
   Settings2,
+  LogOut,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
@@ -25,6 +26,12 @@ import './ChatArea.css'
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const VALID_IMAGES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
 const VALID_VIDEOS = ['video/mp4', 'video/webm', 'video/quicktime']
+const REACTION_OPTIONS = [
+  { type: 'like', label: 'Like' },
+  { type: 'love', label: 'Love' },
+  { type: 'haha', label: 'Haha' },
+  { type: 'sad', label: 'Sad' },
+]
 
 export default function ChatArea() {
   const { communityId } = useParams()
@@ -36,12 +43,15 @@ export default function ChatArea() {
     activeCommunity,
     activateCommunityById,
     messages,
+    messageReactions,
     loading,
     sendMessage,
+    reactToMessage,
     uploadMedia,
     typingUsers,
     broadcastTyping,
     members,
+    leaveCommunity,
   } = useChat()
 
   const [text, setText] = useState('')
@@ -50,6 +60,7 @@ export default function ChatArea() {
   const [uploadFile, setUploadFile] = useState(null)
   const [showManagePanel, setShowManagePanel] = useState(false)
   const [userBadges, setUserBadges] = useState({})
+  const [replyingTo, setReplyingTo] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -68,7 +79,7 @@ export default function ChatArea() {
         toast.error('Unable to open that community right now.')
         navigate('/app/discover')
       })
-  }, [communityId, activeCommunity?.id, communities, activateCommunityById])
+  }, [communityId, activeCommunity?.id, communities, activateCommunityById, navigate])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -80,6 +91,7 @@ export default function ChatArea() {
     setUploadPreview(null)
     setShowManagePanel(false)
     setUserBadges({})
+    setReplyingTo(null)
   }, [activeCommunity?.id])
 
   useEffect(() => {
@@ -116,6 +128,8 @@ export default function ChatArea() {
   const isPrivate = activeCommunity.visibility === 'private'
   const isOwner = activeCommunity.owner_id === user?.id || activeCommunity.role === 'owner'
   const canSendInCommunity = !isChannel || isOwner
+  const groupedMessages = groupMessagesByDate(messages)
+  const messageById = Object.fromEntries(messages.map((message) => [message.id, message]))
 
   function handleFileSelect(event) {
     const file = event.target.files?.[0]
@@ -156,12 +170,19 @@ export default function ChatArea() {
       if (uploadFile) {
         const fileUrl = await uploadMedia(uploadFile)
         const messageType = uploadFile.type.startsWith('video/') ? 'video' : 'image'
-        await sendMessage(activeCommunity.id, text.trim() || uploadFile.name, fileUrl, messageType)
+        await sendMessage(
+          activeCommunity.id,
+          text.trim() || uploadFile.name,
+          fileUrl,
+          messageType,
+          replyingTo?.id || null
+        )
         clearUpload()
       } else {
-        await sendMessage(activeCommunity.id, text.trim())
+        await sendMessage(activeCommunity.id, text.trim(), null, 'text', replyingTo?.id || null)
       }
       setText('')
+      setReplyingTo(null)
     } catch (error) {
       toast.error(error.message || 'Failed to send message')
     } finally {
@@ -194,8 +215,6 @@ export default function ChatArea() {
     navigate('/app/chats')
   }
 
-  const groupedMessages = groupMessagesByDate(messages)
-
   async function handleQuickAddFriend(sender) {
     if (!sender?.id || sender.id === user?.id) return
     const { error } = await supabase.from('friendships').insert({
@@ -217,6 +236,27 @@ export default function ChatArea() {
   function handleQuickMessage(sender) {
     if (!sender?.username || sender.id === user?.id) return
     navigate(`/app/dm/${sender.username}`)
+  }
+
+  async function handleReact(messageId, reactionType) {
+    try {
+      await reactToMessage(messageId, reactionType)
+    } catch (error) {
+      toast.error(error.message || 'Could not react to message')
+    }
+  }
+
+  async function handleLeaveCommunity() {
+    if (!activeCommunity) return
+    if (!window.confirm(`Leave ${activeCommunity.name}?`)) return
+
+    try {
+      await leaveCommunity(activeCommunity.id)
+      toast.success(`You left ${activeCommunity.name}`)
+      navigate('/app/chats')
+    } catch (error) {
+      toast.error(error.message || 'Could not leave community')
+    }
   }
 
   return (
@@ -266,6 +306,13 @@ export default function ChatArea() {
                 Manage
               </button>
             )}
+
+            {!isOwner && (
+              <button className="chat-leave-btn" onClick={handleLeaveCommunity}>
+                <LogOut size={15} />
+                Leave
+              </button>
+            )}
           </div>
 
           <div className="chat-community-summary">
@@ -313,11 +360,15 @@ export default function ChatArea() {
                       <MessageBubble
                         key={message.id}
                         message={message}
+                        parentMessage={message.parent_message_id ? messageById[message.parent_message_id] : null}
                         isOwn={isOwn}
                         isGrouped={isGrouped}
                         badge={userBadges[message.sender_id] || null}
+                        reactions={messageReactions[message.id] || null}
                         onAddFriend={handleQuickAddFriend}
                         onMessageUser={handleQuickMessage}
+                        onReply={(target) => setReplyingTo(target)}
+                        onReact={handleReact}
                       />
                     )
                   })}
@@ -351,6 +402,26 @@ export default function ChatArea() {
               <span className="preview-name">{uploadPreview.name}</span>
             </div>
             <button className="remove-preview" onClick={clearUpload}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {replyingTo && (
+          <div className="replying-preview">
+            <div className="replying-preview-copy">
+              <span className="replying-label">
+                Replying to {replyingTo.sender_id === user?.id ? 'yourself' : replyingTo.profiles?.display_name || 'user'}
+              </span>
+              <p>
+                {replyingTo.content?.trim()
+                  ? replyingTo.content.slice(0, 90)
+                  : replyingTo.message_type !== 'text'
+                    ? `${replyingTo.message_type} attachment`
+                    : 'Message'}
+              </p>
+            </div>
+            <button className="remove-preview" onClick={() => setReplyingTo(null)}>
               <X size={14} />
             </button>
           </div>
@@ -399,7 +470,18 @@ export default function ChatArea() {
   )
 }
 
-function MessageBubble({ message, isOwn, isGrouped, badge, onAddFriend, onMessageUser }) {
+function MessageBubble({
+  message,
+  parentMessage,
+  isOwn,
+  isGrouped,
+  badge,
+  reactions,
+  onAddFriend,
+  onMessageUser,
+  onReply,
+  onReact,
+}) {
   const isImage = message.message_type === 'image'
   const isVideo = message.message_type === 'video'
   const sender = message.profiles
@@ -451,6 +533,21 @@ function MessageBubble({ message, isOwn, isGrouped, badge, onAddFriend, onMessag
         )}
 
         <div className={`message-bubble ${isOwn ? 'own-bubble' : ''}`}>
+          {parentMessage && (
+            <button className="reply-reference" onClick={() => onReply?.(parentMessage)}>
+              <span className="reply-reference-author">
+                {`Replying to ${parentMessage.profiles?.display_name || 'user'}`}
+              </span>
+              <span className="reply-reference-text">
+                {parentMessage.content?.trim()
+                  ? parentMessage.content.slice(0, 80)
+                  : parentMessage.message_type !== 'text'
+                    ? `${parentMessage.message_type} attachment`
+                    : 'Message'}
+              </span>
+            </button>
+          )}
+
           {message.file_url && isImage && (
             <img
               src={message.file_url}
@@ -465,6 +562,29 @@ function MessageBubble({ message, isOwn, isGrouped, badge, onAddFriend, onMessag
           {message.content && message.content !== message.file_url && (
             <p className="message-text">{message.content}</p>
           )}
+
+          <div className="message-actions-row">
+            <button className="message-reply-btn" onClick={() => onReply?.(message)}>
+              Reply
+            </button>
+            <div className="message-reactions">
+              {REACTION_OPTIONS.map((reaction) => {
+                const count = reactions?.byType?.[reaction.type] || 0
+                const selected = reactions?.userReaction === reaction.type
+                return (
+                  <button
+                    key={reaction.type}
+                    className={`reaction-chip ${selected ? 'selected' : ''}`}
+                    onClick={() => onReact?.(message.id, reaction.type)}
+                    title={reaction.label}
+                  >
+                    <span>{reaction.label}</span>
+                    {count > 0 && <span>{count}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>

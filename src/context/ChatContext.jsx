@@ -10,6 +10,7 @@ export function ChatProvider({ children }) {
   const [communities, setCommunities] = useState([])
   const [activeCommunity, setActiveCommunity] = useState(null)
   const [messages, setMessages] = useState([])
+  const [messageReactions, setMessageReactions] = useState({})
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [typingUsers, setTypingUsers] = useState([])
@@ -47,6 +48,7 @@ export function ChatProvider({ children }) {
       setCommunities([])
       setActiveCommunity(null)
       setMessages([])
+      setMessageReactions({})
       setMembers([])
       setTypingUsers([])
       return
@@ -59,6 +61,9 @@ export function ChatProvider({ children }) {
     if (!activeCommunity) return
 
     loadMessages(activeCommunity.id)
+    loadReactions(activeCommunity.id).catch(() => {
+      setMessageReactions({})
+    })
     loadMembers(activeCommunity.id)
 
     if (channelRef.current) {
@@ -91,6 +96,19 @@ export function ChatProvider({ children }) {
           ])
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_reactions',
+        },
+        () => {
+          loadReactions(activeCommunity.id).catch(() => {
+            setMessageReactions({})
+          })
+        }
+      )
       .on('broadcast', { event: 'typing' }, ({ payload }) => {
         if (payload.userId === user?.id) return
 
@@ -111,6 +129,7 @@ export function ChatProvider({ children }) {
         channelRef.current = null
       }
       setTypingUsers([])
+      setMessageReactions({})
       isTypingRef.current = false
       clearTimeout(typingTimerRef.current)
     }
@@ -175,6 +194,39 @@ export function ChatProvider({ children }) {
     setLoading(false)
   }
 
+  async function loadReactions(communityId) {
+    if (!communityId) {
+      setMessageReactions({})
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('message_reactions')
+      .select('message_id, user_id, reaction_type, messages!inner(community_id)')
+      .eq('messages.community_id', communityId)
+
+    if (error) throw error
+
+    const grouped = {}
+    for (const reaction of data || []) {
+      if (!grouped[reaction.message_id]) {
+        grouped[reaction.message_id] = {
+          byType: {},
+          userReaction: null,
+        }
+      }
+
+      grouped[reaction.message_id].byType[reaction.reaction_type] =
+        (grouped[reaction.message_id].byType[reaction.reaction_type] || 0) + 1
+
+      if (reaction.user_id === user?.id) {
+        grouped[reaction.message_id].userReaction = reaction.reaction_type
+      }
+    }
+
+    setMessageReactions(grouped)
+  }
+
   async function loadMembers(communityId) {
     const { data, error } = await supabase
       .from('community_members')
@@ -234,7 +286,13 @@ export function ChatProvider({ children }) {
     })
   }, [profile, user])
 
-  async function sendMessage(communityId, content, fileUrl = null, messageType = 'text') {
+  async function sendMessage(
+    communityId,
+    content,
+    fileUrl = null,
+    messageType = 'text',
+    parentMessageId = null
+  ) {
     if (!user) return
 
     if (
@@ -253,6 +311,7 @@ export function ChatProvider({ children }) {
       content,
       file_url: fileUrl,
       message_type: messageType,
+      parent_message_id: parentMessageId,
     })
 
     if (error) throw error
@@ -289,6 +348,63 @@ export function ChatProvider({ children }) {
     const nextCommunities = await loadCommunities()
     const nextActive = nextCommunities.find((community) => community.id === communityId)
     if (nextActive) setActiveCommunity(nextActive)
+  }
+
+  async function leaveCommunity(communityId) {
+    if (!user || !communityId) return
+
+    const targetCommunity = communities.find((community) => community.id === communityId)
+    if (targetCommunity?.owner_id === user.id || targetCommunity?.role === ROLES.OWNER) {
+      throw new Error('Community owner cannot leave. Delete the community instead.')
+    }
+
+    const { error } = await supabase
+      .from('community_members')
+      .delete()
+      .eq('community_id', communityId)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+
+    if (activeCommunity?.id === communityId) {
+      setActiveCommunity(null)
+      setMessages([])
+      setMessageReactions({})
+      setMembers([])
+      setTypingUsers([])
+    }
+
+    await loadCommunities()
+  }
+
+  async function reactToMessage(messageId, reactionType) {
+    if (!user || !messageId) return
+
+    const existingReaction = messageReactions[messageId]?.userReaction || null
+
+    if (existingReaction === reactionType) {
+      const { error } = await supabase
+        .from('message_reactions')
+        .delete()
+        .eq('message_id', messageId)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+      return
+    }
+
+    const { error } = await supabase
+      .from('message_reactions')
+      .upsert(
+        {
+          message_id: messageId,
+          user_id: user.id,
+          reaction_type: reactionType,
+        },
+        { onConflict: 'message_id,user_id' }
+      )
+
+    if (error) throw error
   }
 
   async function createCommunity(payload) {
@@ -388,6 +504,7 @@ export function ChatProvider({ children }) {
     if (user && nextMembers.every((member) => member.user_id !== user.id)) {
       setActiveCommunity(null)
       setMessages([])
+      setMessageReactions({})
       setTypingUsers([])
       await loadCommunities()
     }
@@ -402,6 +519,7 @@ export function ChatProvider({ children }) {
     if (error) throw error
 
     setMessages([])
+    setMessageReactions({})
     setMembers([])
     setTypingUsers([])
 
@@ -419,6 +537,7 @@ export function ChatProvider({ children }) {
         setActiveCommunity,
         activateCommunityById,
         messages,
+        messageReactions,
         members,
         loading,
         typingUsers,
@@ -426,8 +545,10 @@ export function ChatProvider({ children }) {
         fetchCommunities: loadCommunities,
         loadMembers,
         sendMessage,
+        reactToMessage,
         uploadMedia,
         joinCommunity,
+        leaveCommunity,
         createCommunity,
         updateCommunity,
         addCommunityMember,

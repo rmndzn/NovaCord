@@ -66,12 +66,15 @@ create table if not exists messages (
   id            uuid primary key default uuid_generate_v4(),
   community_id  uuid not null references communities(id) on delete cascade,
   sender_id     uuid references profiles(id) on delete set null,
+  parent_message_id uuid references messages(id) on delete set null,
   content       text,
   message_type  text not null default 'text'
                   check (message_type in ('text', 'image', 'video')),
   file_url      text,
   created_at    timestamptz default now()
 );
+
+alter table messages add column if not exists parent_message_id uuid references messages(id) on delete set null;
 
 -- badges (depends on profiles)
 create table if not exists badges (
@@ -117,12 +120,24 @@ create table if not exists direct_messages (
   check (sender_id <> receiver_id)
 );
 
+-- message_reactions (depends on messages + profiles)
+create table if not exists message_reactions (
+  id             uuid primary key default uuid_generate_v4(),
+  message_id     uuid not null references messages(id) on delete cascade,
+  user_id        uuid not null references profiles(id) on delete cascade,
+  reaction_type  text not null
+                   check (reaction_type in ('love', 'haha', 'sad', 'like')),
+  created_at     timestamptz default now(),
+  unique(message_id, user_id)
+);
+
 -- =============================================
 -- STEP 2: INDEXES
 -- =============================================
 
 create index if not exists idx_messages_community_id  on messages(community_id);
 create index if not exists idx_messages_created_at    on messages(created_at desc);
+create index if not exists idx_messages_parent_id      on messages(parent_message_id);
 create index if not exists idx_cm_user_id             on community_members(user_id);
 create index if not exists idx_cm_community_id        on community_members(community_id);
 create index if not exists idx_communities_visibility on communities(visibility);
@@ -132,6 +147,8 @@ create index if not exists idx_friendships_addressee   on friendships(addressee_
 create index if not exists idx_friendships_status      on friendships(status);
 create index if not exists idx_dm_sender_created       on direct_messages(sender_id, created_at desc);
 create index if not exists idx_dm_receiver_created     on direct_messages(receiver_id, created_at desc);
+create index if not exists idx_reactions_message       on message_reactions(message_id);
+create index if not exists idx_reactions_user          on message_reactions(user_id);
 
 -- =============================================
 -- STEP 3: ENABLE ROW LEVEL SECURITY
@@ -145,6 +162,7 @@ alter table badges             enable row level security;
 alter table invitations        enable row level security;
 alter table friendships        enable row level security;
 alter table direct_messages    enable row level security;
+alter table message_reactions  enable row level security;
 
 -- =============================================
 -- STEP 4: HELPER FUNCTIONS FOR RLS
@@ -364,6 +382,42 @@ create policy "messages: senders can delete own"
   on messages for delete
   using (auth.uid() = sender_id);
 
+drop policy if exists "message_reactions: members can read" on message_reactions;
+create policy "message_reactions: members can read"
+  on message_reactions for select
+  using (
+    exists (
+      select 1
+      from messages m
+      where m.id = message_reactions.message_id
+        and public.is_community_member(m.community_id, auth.uid())
+    )
+  );
+
+drop policy if exists "message_reactions: members can react" on message_reactions;
+create policy "message_reactions: members can react"
+  on message_reactions for insert
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1
+      from messages m
+      where m.id = message_reactions.message_id
+        and public.is_community_member(m.community_id, auth.uid())
+    )
+  );
+
+drop policy if exists "message_reactions: users can change own reaction" on message_reactions;
+create policy "message_reactions: users can change own reaction"
+  on message_reactions for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "message_reactions: users can remove own reaction" on message_reactions;
+create policy "message_reactions: users can remove own reaction"
+  on message_reactions for delete
+  using (auth.uid() = user_id);
+
 drop policy if exists "badges: authenticated users can read all" on badges;
 create policy "badges: authenticated users can read all"
   on badges for select
@@ -449,6 +503,9 @@ alter publication supabase_realtime add table community_members;
 
 -- direct_messages: optional - enables live private chat updates
 alter publication supabase_realtime add table direct_messages;
+
+-- message_reactions: optional - enables live reaction updates
+alter publication supabase_realtime add table message_reactions;
 
 -- =============================================
 -- STEP 7: STORAGE BUCKETS
