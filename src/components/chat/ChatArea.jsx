@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
+  CornerUpLeft,
   Hash,
   Users,
   Lock,
@@ -650,8 +651,13 @@ function MessageBubble({
             )}
           </div>
 
-          <button className="message-reply-btn" onClick={() => onReply?.(message)}>
-            Reply
+          <button
+            className="message-reply-btn"
+            onClick={() => onReply?.(message)}
+            aria-label="Reply to message"
+            title="Reply"
+          >
+            <CornerUpLeft size={14} />
           </button>
         </div>
 

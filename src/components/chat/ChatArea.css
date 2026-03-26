@@ -251,7 +251,7 @@
 .message-content {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .message-header {
@@ -475,7 +475,7 @@
 
 .hover-reaction-strip {
   position: absolute;
-  top: -34px;
+  bottom: calc(100% + 6px);
   left: 10px;
   display: inline-flex;
   align-items: center;
@@ -508,16 +508,23 @@
 }
 
 .message-reply-btn {
-  border: 1px solid rgba(139, 92, 246, 0.22);
-  background: rgba(139, 92, 246, 0.08);
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(84, 33, 165, 0.32);
   color: var(--violet-200);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
+  border-radius: 10px;
   cursor: pointer;
-  width: fit-content;
-  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: 0.16s ease;
+}
+
+.message-reply-btn:hover {
+  background: rgba(109, 40, 217, 0.5);
+  border-color: rgba(167, 139, 250, 0.68);
 }
 
 .message-reactions {
@@ -563,8 +570,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 120;
-  padding: 12px;
+  z-index: 500;
+  padding: 12px 12px calc(88px + env(safe-area-inset-bottom));
 }
 
 .message-actions-sheet {
@@ -930,7 +937,7 @@
   }
 
   .message-actions-sheet-overlay {
-    padding: 10px;
+    padding: 10px 10px calc(92px + env(safe-area-inset-bottom));
   }
 
   .message-actions-sheet {
