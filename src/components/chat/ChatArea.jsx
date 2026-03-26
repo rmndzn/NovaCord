@@ -62,7 +62,6 @@ export default function ChatArea() {
   const [showManagePanel, setShowManagePanel] = useState(false)
   const [userBadges, setUserBadges] = useState({})
   const [replyingTo, setReplyingTo] = useState(null)
-  const [actionMessage, setActionMessage] = useState(null)
   const bottomRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -94,7 +93,6 @@ export default function ChatArea() {
     setShowManagePanel(false)
     setUserBadges({})
     setReplyingTo(null)
-    setActionMessage(null)
   }, [activeCommunity?.id])
 
   useEffect(() => {
@@ -249,11 +247,6 @@ export default function ChatArea() {
     }
   }
 
-  async function handleReactFromSheet(messageId, reactionType) {
-    await handleReact(messageId, reactionType)
-    setActionMessage(null)
-  }
-
   async function handleLeaveCommunity() {
     if (!activeCommunity) return
     if (!window.confirm(`Leave ${activeCommunity.name}?`)) return
@@ -377,7 +370,6 @@ export default function ChatArea() {
                         onMessageUser={handleQuickMessage}
                         onReply={(target) => setReplyingTo(target)}
                         onReact={handleReact}
-                        onLongPress={(target) => setActionMessage(target)}
                       />
                     )
                   })}
@@ -475,40 +467,6 @@ export default function ChatArea() {
         open={showManagePanel}
         onClose={() => setShowManagePanel(false)}
       />
-
-      {actionMessage && (
-        <div className="message-actions-sheet-overlay" onClick={() => setActionMessage(null)}>
-          <div className="message-actions-sheet" onClick={(event) => event.stopPropagation()}>
-            <p className="message-actions-title">
-              React to message
-            </p>
-            <p className="message-actions-snippet">
-              {actionMessage.content?.trim()
-                ? actionMessage.content.slice(0, 100)
-                : actionMessage.message_type !== 'text'
-                  ? `${actionMessage.message_type} attachment`
-                  : 'Message'}
-            </p>
-
-            <div className="sheet-reaction-grid">
-              {REACTION_OPTIONS.map((reaction) => {
-                const count = messageReactions[actionMessage.id]?.byType?.[reaction.type] || 0
-                const selected = messageReactions[actionMessage.id]?.userReaction === reaction.type
-                return (
-                  <button
-                    key={reaction.type}
-                    className={`reaction-chip ${selected ? 'selected' : ''}`}
-                    onClick={() => handleReactFromSheet(actionMessage.id, reaction.type)}
-                  >
-                    <span>{reaction.emoji}</span>
-                    {count > 0 && <span>{count}</span>}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }
@@ -524,7 +482,6 @@ function MessageBubble({
   onMessageUser,
   onReply,
   onReact,
-  onLongPress,
 }) {
   const isImage = message.message_type === 'image'
   const isVideo = message.message_type === 'video'
@@ -542,7 +499,11 @@ function MessageBubble({
     }
 
     document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('touchstart', handleOutsideClick)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('touchstart', handleOutsideClick)
+    }
   }, [showHoverReactions])
 
   function clearLongPress() {
@@ -555,14 +516,14 @@ function MessageBubble({
   function handleTouchStart() {
     clearLongPress()
     longPressTimerRef.current = setTimeout(() => {
-      onLongPress?.(message)
+      setShowHoverReactions(true)
       longPressTimerRef.current = null
     }, 420)
   }
 
   function handleContextMenu(event) {
     event.preventDefault()
-    onLongPress?.(message)
+    setShowHoverReactions(true)
   }
 
   return (
