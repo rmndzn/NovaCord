@@ -530,6 +530,20 @@ function MessageBubble({
   const isVideo = message.message_type === 'video'
   const sender = message.profiles
   const longPressTimerRef = useRef(null)
+  const bubbleRowRef = useRef(null)
+  const [showHoverReactions, setShowHoverReactions] = useState(false)
+
+  useEffect(() => {
+    if (!showHoverReactions) return undefined
+
+    function handleOutsideClick(event) {
+      if (bubbleRowRef.current?.contains(event.target)) return
+      setShowHoverReactions(false)
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [showHoverReactions])
 
   function clearLongPress() {
     if (longPressTimerRef.current) {
@@ -605,13 +619,20 @@ function MessageBubble({
           </div>
         )}
 
-        <div className="message-bubble-row">
-          <div className="hover-reaction-strip">
+        <div
+          className="message-bubble-row"
+          ref={bubbleRowRef}
+          onMouseEnter={() => setShowHoverReactions(true)}
+        >
+          <div className={`hover-reaction-strip ${showHoverReactions ? 'open' : ''}`}>
             {REACTION_OPTIONS.map((reaction) => (
               <button
                 key={reaction.type}
                 className={`reaction-chip ${(reactions?.userReaction === reaction.type) ? 'selected' : ''}`}
-                onClick={() => onReact?.(message.id, reaction.type)}
+                onClick={() => {
+                  onReact?.(message.id, reaction.type)
+                  setShowHoverReactions(false)
+                }}
                 title={reaction.label}
               >
                 <span>{reaction.emoji}</span>
@@ -652,7 +673,7 @@ function MessageBubble({
           </div>
 
           <button
-            className="message-reply-btn"
+            className={`message-reply-btn ${isOwn ? 'self-reply-btn' : ''}`}
             onClick={() => onReply?.(message)}
             aria-label="Reply to message"
             title="Reply"

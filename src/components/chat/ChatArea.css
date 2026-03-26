@@ -492,7 +492,7 @@
   z-index: 5;
 }
 
-.message-bubble-row:hover .hover-reaction-strip {
+.hover-reaction-strip.open {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
@@ -525,6 +525,17 @@
 .message-reply-btn:hover {
   background: rgba(109, 40, 217, 0.5);
   border-color: rgba(167, 139, 250, 0.68);
+}
+
+.self-reply-btn {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.message.own:hover .self-reply-btn {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .message-reactions {
@@ -934,6 +945,11 @@
 
   .hover-reaction-strip {
     display: none;
+  }
+
+  .self-reply-btn {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .message-actions-sheet-overlay {
